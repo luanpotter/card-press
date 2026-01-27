@@ -271,9 +271,19 @@ label {
   color: var(--border);
 }
 
+label .error-text {
+  color: var(--danger);
+  margin-left: 4px;
+}
+
 label input,
 label select {
   font-size: 1.18em;
+}
+
+input.error,
+select.error {
+  border-color: var(--danger);
 }
 
 /* Slots */

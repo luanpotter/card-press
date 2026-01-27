@@ -48,8 +48,20 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
   const [gridRows, setGridRows] = useState("3");
   const [gridGap, setGridGap] = useState("5");
 
+  const [errors, setErrors] = useState<{ name?: boolean; cardWidth?: boolean; cardHeight?: boolean }>({});
+
+  const validate = () => {
+    const newErrors = {
+      name: name.trim() === "",
+      cardWidth: cardSize.width <= 0,
+      cardHeight: cardSize.height <= 0,
+    };
+    setErrors(newErrors);
+    return !newErrors.name && !newErrors.cardWidth && !newErrors.cardHeight;
+  };
+
   const handleSave = () => {
-    if (name.trim() === "") return;
+    if (!validate()) return;
     onSave({ name, pageSize, cardSize, slots, basePdfId });
   };
 
@@ -123,88 +135,74 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
       <fieldset>
         <legend>Basic Info</legend>
         <div className="form-row">
-          <label>
-            Name
-            <Input value={name} onChange={setName} placeholder="Template name" />
-          </label>
-          <label>
-            Page Size
-            <Select value={pageSize} onChange={(v) => setPageSize(v as PageSize)} options={PAGE_SIZE_OPTIONS} />
-          </label>
+          <Input
+            label="Name"
+            value={name}
+            onChange={setName}
+            placeholder="Template name"
+            error={errors.name ? "required" : undefined}
+          />
+          <Select
+            label="Page Size"
+            value={pageSize}
+            onChange={(v) => setPageSize(v as PageSize)}
+            options={PAGE_SIZE_OPTIONS}
+          />
         </div>
       </fieldset>
 
       <fieldset>
         <legend>Card Size (mm)</legend>
         <div className="form-row">
-          <label>
-            Preset
-            <Select
-              value={cardSizePreset}
-              onChange={(v) => {
-                const preset = v as CardSizePreset;
-                setCardSizePreset(preset);
-                if (preset !== CardSizePreset.Custom) {
-                  setCardSize(CARD_SIZE_PRESETS[preset]);
-                }
-              }}
-              options={CARD_SIZE_OPTIONS}
-            />
-          </label>
-          <label>
-            Width
-            <Input
-              value={cardSize.width.toString()}
-              onChange={(v) => {
-                const width = parseFloat(v) || 0;
-                setCardSize({ ...cardSize, width });
-                setCardSizePreset(CardSizePreset.Custom);
-              }}
-              placeholder="63"
-            />
-          </label>
-          <label>
-            Height
-            <Input
-              value={cardSize.height.toString()}
-              onChange={(v) => {
-                const height = parseFloat(v) || 0;
-                setCardSize({ ...cardSize, height });
-                setCardSizePreset(CardSizePreset.Custom);
-              }}
-              placeholder="88"
-            />
-          </label>
+          <Select
+            label="Preset"
+            value={cardSizePreset}
+            onChange={(v) => {
+              const preset = v as CardSizePreset;
+              setCardSizePreset(preset);
+              if (preset !== CardSizePreset.Custom) {
+                setCardSize(CARD_SIZE_PRESETS[preset]);
+              }
+            }}
+            options={CARD_SIZE_OPTIONS}
+          />
+          <Input
+            label="Width"
+            value={cardSize.width.toString()}
+            onChange={(v) => {
+              const width = parseFloat(v) || 0;
+              setCardSize({ ...cardSize, width });
+              setCardSizePreset(CardSizePreset.Custom);
+            }}
+            placeholder="63"
+            error={errors.cardWidth ? "invalid" : undefined}
+          />
+          <Input
+            label="Height"
+            value={cardSize.height.toString()}
+            onChange={(v) => {
+              const height = parseFloat(v) || 0;
+              setCardSize({ ...cardSize, height });
+              setCardSizePreset(CardSizePreset.Custom);
+            }}
+            placeholder="88"
+            error={errors.cardHeight ? "invalid" : undefined}
+          />
         </div>
       </fieldset>
 
       <fieldset>
         <legend>Slots ({slots.length})</legend>
         <div className="form-row">
-          <label>
-            Cols
-            <Input value={gridCols} onChange={setGridCols} placeholder="3" />
-          </label>
-          <label>
-            Rows
-            <Input value={gridRows} onChange={setGridRows} placeholder="3" />
-          </label>
-          <label>
-            Gap (mm)
-            <Input value={gridGap} onChange={setGridGap} placeholder="5" />
-          </label>
+          <Input label="Cols" value={gridCols} onChange={setGridCols} placeholder="3" />
+          <Input label="Rows" value={gridRows} onChange={setGridRows} placeholder="3" />
+          <Input label="Gap (mm)" value={gridGap} onChange={setGridGap} placeholder="5" />
           <Button onClick={handleGenerateGrid}>Generate Grid</Button>
         </div>
 
         <div className="form-row">
-          <label>
-            X (mm)
-            <Input value={newSlotX} onChange={setNewSlotX} placeholder="0" />
-          </label>
-          <label>
-            Y (mm)
-            <Input value={newSlotY} onChange={setNewSlotY} placeholder="0" />
-          </label>
+          <Input label="X (mm)" value={newSlotX} onChange={setNewSlotX} placeholder="0" />
+          <Input label="Y (mm)" value={newSlotY} onChange={setNewSlotY} placeholder="0" />
           <Button onClick={handleAddSlot}>Add Slot</Button>
           {slots.length > 0 && (
             <Button onClick={() => setSlots([])} variant="danger">
@@ -230,12 +228,14 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
       <fieldset>
         <legend>Base PDF (optional)</legend>
         <div className="form-row">
+          <Select
+            label="Select PDF"
+            value={basePdfId ?? ""}
+            onChange={(v) => setBasePdfId(v || undefined)}
+            options={basePdfOptions}
+          />
           <label>
-            Select PDF
-            <Select value={basePdfId ?? ""} onChange={(v) => setBasePdfId(v || undefined)} options={basePdfOptions} />
-          </label>
-          <label>
-            Upload New
+            <span>Upload New</span>
             <input ref={fileInputRef} type="file" accept="application/pdf" onChange={handleFileUpload} />
           </label>
         </div>

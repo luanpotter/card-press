@@ -1,11 +1,11 @@
-import type { Template, PageSize } from "@/types/template";
+import type { Template } from "@/types/template";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 interface TemplateState {
   templates: Template[];
-  addTemplate: (name: string, pageSize: PageSize) => void;
-  updateTemplate: (id: string, name: string, pageSize: PageSize) => void;
+  addTemplate: (template: Omit<Template, "id">) => void;
+  updateTemplate: (id: string, template: Omit<Template, "id">) => void;
   deleteTemplate: (id: string) => void;
 }
 
@@ -13,13 +13,13 @@ export const useTemplateStore = create<TemplateState>()(
   persist(
     (set) => ({
       templates: [],
-      addTemplate: (name, pageSize) =>
+      addTemplate: (template) =>
         set((state) => ({
-          templates: [...state.templates, { id: crypto.randomUUID(), name, pageSize }],
+          templates: [...state.templates, { ...template, id: crypto.randomUUID() }],
         })),
-      updateTemplate: (id, name, pageSize) =>
+      updateTemplate: (id, template) =>
         set((state) => ({
-          templates: state.templates.map((t) => (t.id === id ? { ...t, name, pageSize } : t)),
+          templates: state.templates.map((t) => (t.id === id ? { ...t, ...template } : t)),
         })),
       deleteTemplate: (id) =>
         set((state) => ({

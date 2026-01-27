@@ -18,6 +18,14 @@ jobs:
             - name: Setup Bun
               uses: oven-sh/setup-bun@v2
 
+            - name: Install shellcheck
+              run: sudo apt-get install -y shellcheck shfmt
+
+            - name: Install actionlint
+              run: |
+                  bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+                  echo "$PWD" >> "$GITHUB_PATH"
+
             - name: Install dependencies
               run: bun install --frozen-lockfile
 

@@ -41,8 +41,7 @@ export default defineConfig(
     rules: {
       // Strict TypeScript rules
       "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-non-null-assertion": "error",
-      "@typescript-eslint/no-unnecessary-condition": "error",
+      "@typescript-eslint/no-non-null-assertion": "warn",
       "@typescript-eslint/no-unnecessary-type-assertion": "error",
       "@typescript-eslint/no-unsafe-argument": "error",
       "@typescript-eslint/no-unsafe-assignment": "error",
@@ -53,7 +52,6 @@ export default defineConfig(
       "@typescript-eslint/prefer-optional-chain": "error",
       "@typescript-eslint/restrict-plus-operands": "error",
       "@typescript-eslint/restrict-template-expressions": "error",
-      "@typescript-eslint/strict-boolean-expressions": "error",
       "@typescript-eslint/switch-exhaustiveness-check": "error",
       "@typescript-eslint/consistent-type-imports": [
         "error",

@@ -13,7 +13,7 @@ const app = (
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- required by Bun HMR API
 if (import.meta.hot) {
   // With hot module reloading, `import.meta.hot.data` is persisted.
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- required Bun HMR API
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- required Bun HMR API
   const root = (import.meta.hot.data.root ??= createRoot(rootDiv)) as Root;
   root.render(app);
 } else {

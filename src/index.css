@@ -3,10 +3,16 @@
   --text: #ccc;
 }
 
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 html,
 body {
   height: 100%;
-  margin: 0;
+  font-size: 1.2em;
 }
 
 body {
@@ -17,11 +23,35 @@ body {
   justify-content: center;
 }
 
+a {
+  color: var(--text);
+}
+
+menu {
+  background-color: var(--bg);
+  padding: 4px;
+  display: flex;
+  gap: 4px;
+}
+
+menu > a {
+  text-decoration: none;
+}
+
+menu > a::after {
+  content: "/";
+  margin-left: 4px;
+}
+
+menu > a.active > span {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 #root {
   border: 1px solid var(--text);
   width: 1200px;
   margin: 16px;
-  padding: 8px;
   box-sizing: border-box;
   min-height: calc(100% - 32px);
 }

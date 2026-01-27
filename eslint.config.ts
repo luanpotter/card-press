@@ -66,6 +66,10 @@ export default defineConfig(
         "error",
         { checksVoidReturn: { attributes: false } },
       ],
+      "@typescript-eslint/no-confusing-void-expression": [
+        "error",
+        { ignoreArrowShorthand: true },
+      ],
 
       // General best practices
       "no-console": "warn",

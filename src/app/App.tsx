@@ -8,6 +8,7 @@ export function App() {
       <menu>
         <Link href="/">Card Press</Link>
         <Link href="/sessions">Sessions</Link>
+        <Link href="/templates">Templates</Link>
         <Link href="/config">Config</Link>
       </menu>
       <main>

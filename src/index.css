@@ -1,6 +1,9 @@
 :root {
   --bg: #3c3c3c;
   --text: #ccc;
+  --accent: #e07020;
+  --danger: #c04040;
+  --border: #666;
 }
 
 * {
@@ -59,4 +62,85 @@ main {
   margin: 16px;
   box-sizing: border-box;
   min-height: calc(100% - 32px);
+}
+
+/* Form elements */
+input,
+select,
+button {
+  font-family: monospace;
+  font-size: 1em;
+  background: #000;
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+}
+
+input:focus,
+select:focus,
+button:focus {
+  outline: 1px solid var(--accent);
+  border-color: var(--accent);
+}
+
+button {
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--bg);
+}
+
+button.accent {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+button.accent:hover {
+  background: var(--accent);
+  color: #000;
+}
+
+button.danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+button.danger:hover {
+  background: var(--danger);
+  color: #000;
+}
+
+/* Layout */
+.form-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* Table */
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+th {
+  color: var(--accent);
+}
+
+/* Utilities */
+.muted {
+  color: var(--border);
 }

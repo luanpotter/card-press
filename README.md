@@ -1,5 +1,7 @@
 # card-press
 
+[![CI](https://github.com/luanpotter/card-press/actions/workflows/ci.yaml/badge.svg)](https://github.com/luanpotter/card-press/actions/workflows/ci.yaml)
+
 To install dependencies:
 
 ```bash

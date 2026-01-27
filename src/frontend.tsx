@@ -1,19 +1,37 @@
+import { type Root, createRoot } from "react-dom/client";
 import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
 import { App } from "./app/App";
 
-const rootDiv = document.getElementById("root")!;
+function getRootElement(): HTMLElement {
+  const el = document.getElementById("root");
+  if (!el) {
+    throw new Error("Root element not found");
+  }
+  return el;
+}
+
+const rootDiv = getRootElement();
+
 const app = (
   <StrictMode>
     <App />
   </StrictMode>
 );
 
-if (import.meta.hot) {
-  // With hot module reloading, `import.meta.hot.data` is persisted.
-  const root = (import.meta.hot.data.root ??= createRoot(rootDiv));
-  root.render(app);
-} else {
+function getOrCreateRoot(): Root {
+  const hot = import.meta.hot as { data: { root?: Root } } | undefined;
+  if (hot) {
+    // With hot module reloading, `import.meta.hot.data` is persisted.
+    const existing = hot.data.root;
+    if (existing) {
+      return existing;
+    }
+    const newRoot = createRoot(rootDiv);
+    hot.data.root = newRoot;
+    return newRoot;
+  }
   // The hot module reloading API is not available in production.
-  createRoot(rootDiv).render(app);
+  return createRoot(rootDiv);
 }
+
+getOrCreateRoot().render(app);

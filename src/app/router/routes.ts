@@ -1,6 +1,6 @@
-import { Home } from "../pages/Home";
-import { Sessions } from "../pages/Sessions";
-import { Config } from "../pages/Config";
+import { Home } from "@/app/pages/Home";
+import { Sessions } from "@/app/pages/Sessions";
+import { Config } from "@/app/pages/Config";
 
 export const ROUTES = [
   { path: "/", component: Home },

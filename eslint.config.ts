@@ -78,6 +78,19 @@ export default defineConfig(
       "no-var": "error",
       "object-shorthand": "error",
       "prefer-template": "error",
+
+      // Enforce absolute imports
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["./*", "../*"],
+              message: "Use absolute imports with @/ instead of relative imports.",
+            },
+          ],
+        },
+      ],
     },
   },
   prettierConfig

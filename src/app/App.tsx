@@ -1,6 +1,6 @@
-import { Router, Routes } from "./router/router";
-import { Link } from "./components/Link";
-import { ROUTES } from "./router/routes";
+import { Router, Routes } from "@/app/router/router";
+import { Link } from "@/app/components/Link";
+import { ROUTES } from "@/app/router/routes";
 
 export function App() {
   return (

@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { type RouterContextValue, RouterContext } from "./routerContext";
+import { type RouterContextValue, RouterContext } from "@/app/router/routerContext";
 
 export function useRouter(): RouterContextValue {
   const context = useContext(RouterContext);

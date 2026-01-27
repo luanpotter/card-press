@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { RouterContext } from "./routerContext";
-import { useRouter } from "./useRouter";
+import { RouterContext } from "@/app/router/routerContext";
+import { useRouter } from "@/app/router/useRouter";
 
 function getHashPath(): string {
   const hash = window.location.hash.slice(1);

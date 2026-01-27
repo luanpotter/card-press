@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { App } from "./app/App";
+import { App } from "@/app/App";
 
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- Bun template: root element is guaranteed to exist
 const rootDiv = document.getElementById("root")!;

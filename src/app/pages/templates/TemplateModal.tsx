@@ -1,3 +1,4 @@
+import { Box } from "@/app/components/Box";
 import { Button } from "@/app/components/Button";
 import { Input } from "@/app/components/Input";
 import { Modal } from "@/app/components/Modal";
@@ -48,16 +49,32 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
   const [gridRows, setGridRows] = useState("3");
   const [gridGap, setGridGap] = useState("5");
 
-  const [errors, setErrors] = useState<{ name?: boolean; cardWidth?: boolean; cardHeight?: boolean }>({});
+  const [errors, setErrors] = useState<{
+    name?: boolean;
+    cardWidth?: boolean;
+    cardHeight?: boolean;
+    slotX?: boolean;
+    slotY?: boolean;
+    gridCols?: boolean;
+    gridRows?: boolean;
+    gridGap?: boolean;
+    slots?: boolean;
+  }>({});
+
+  const isValidNumber = (value: string) => value.trim() !== "" && !isNaN(Number(value));
+  const isValidPositiveInt = (value: string) =>
+    isValidNumber(value) && Number.isInteger(Number(value)) && Number(value) >= 1;
+  const isValidNonNegative = (value: string) => isValidNumber(value) && Number(value) >= 0;
 
   const validate = () => {
     const newErrors = {
       name: name.trim() === "",
       cardWidth: cardSize.width <= 0,
       cardHeight: cardSize.height <= 0,
+      slots: slots.length === 0,
     };
     setErrors(newErrors);
-    return !newErrors.name && !newErrors.cardWidth && !newErrors.cardHeight;
+    return !newErrors.name && !newErrors.cardWidth && !newErrors.cardHeight && !newErrors.slots;
   };
 
   const handleSave = () => {
@@ -66,10 +83,12 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
   };
 
   const handleAddSlot = () => {
-    const x = parseFloat(newSlotX);
-    const y = parseFloat(newSlotY);
-    if (isNaN(x) || isNaN(y)) return;
-    setSlots([...slots, { x, y }]);
+    const xValid = isValidNonNegative(newSlotX);
+    const yValid = isValidNonNegative(newSlotY);
+    setErrors((prev) => ({ ...prev, slotX: !xValid, slotY: !yValid }));
+    if (!xValid || !yValid) return;
+
+    setSlots([...slots, { x: Number(newSlotX), y: Number(newSlotY) }]);
     setNewSlotX("");
     setNewSlotY("");
   };
@@ -79,10 +98,15 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
   };
 
   const handleGenerateGrid = () => {
-    const cols = parseInt(gridCols);
-    const rows = parseInt(gridRows);
-    const gap = parseFloat(gridGap);
-    if (isNaN(cols) || isNaN(rows) || isNaN(gap) || cols < 1 || rows < 1) return;
+    const colsValid = isValidPositiveInt(gridCols);
+    const rowsValid = isValidPositiveInt(gridRows);
+    const gapValid = isValidNonNegative(gridGap);
+    setErrors((prev) => ({ ...prev, gridCols: !colsValid, gridRows: !rowsValid, gridGap: !gapValid }));
+    if (!colsValid || !rowsValid || !gapValid) return;
+
+    const cols = Number(gridCols);
+    const rows = Number(gridRows);
+    const gap = Number(gridGap);
 
     const page = PAGE_DIMENSIONS[pageSize];
     const totalWidth = cols * cardSize.width + (cols - 1) * gap;
@@ -132,8 +156,7 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
 
   return (
     <Modal title={template ? "Edit Template" : "New Template"} onClose={onClose} footer={footer}>
-      <fieldset>
-        <legend>Basic Info</legend>
+      <Box label="Basic Info">
         <div className="form-row">
           <Input
             label="Name"
@@ -149,10 +172,9 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
             options={PAGE_SIZE_OPTIONS}
           />
         </div>
-      </fieldset>
+      </Box>
 
-      <fieldset>
-        <legend>Card Size (mm)</legend>
+      <Box label="Card Size (mm)">
         <div className="form-row">
           <Select
             label="Preset"
@@ -189,20 +211,37 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
             error={errors.cardHeight ? "invalid" : undefined}
           />
         </div>
-      </fieldset>
+      </Box>
 
-      <fieldset>
-        <legend>Slots ({slots.length})</legend>
+      <Box label={`Slots (${String(slots.length)})`} error={errors.slots ? "add at least one slot" : undefined}>
         <div className="form-row">
-          <Input label="Cols" value={gridCols} onChange={setGridCols} placeholder="3" />
-          <Input label="Rows" value={gridRows} onChange={setGridRows} placeholder="3" />
-          <Input label="Gap (mm)" value={gridGap} onChange={setGridGap} placeholder="5" />
+          <Input
+            label="Cols"
+            value={gridCols}
+            onChange={setGridCols}
+            placeholder="3"
+            error={errors.gridCols ? "invalid" : undefined}
+          />
+          <Input
+            label="Rows"
+            value={gridRows}
+            onChange={setGridRows}
+            placeholder="3"
+            error={errors.gridRows ? "invalid" : undefined}
+          />
+          <Input
+            label="Gap (mm)"
+            value={gridGap}
+            onChange={setGridGap}
+            placeholder="5"
+            error={errors.gridGap ? "invalid" : undefined}
+          />
           <Button onClick={handleGenerateGrid}>Generate Grid</Button>
         </div>
 
         <div className="form-row">
-          <Input label="X (mm)" value={newSlotX} onChange={setNewSlotX} placeholder="0" />
-          <Input label="Y (mm)" value={newSlotY} onChange={setNewSlotY} placeholder="0" />
+          <Input label="X (mm)" value={newSlotX} onChange={setNewSlotX} error={errors.slotX ? "invalid" : undefined} />
+          <Input label="Y (mm)" value={newSlotY} onChange={setNewSlotY} error={errors.slotY ? "invalid" : undefined} />
           <Button onClick={handleAddSlot}>Add Slot</Button>
           {slots.length > 0 && (
             <Button onClick={() => setSlots([])} variant="danger">
@@ -223,10 +262,9 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
             ))}
           </div>
         )}
-      </fieldset>
+      </Box>
 
-      <fieldset>
-        <legend>Base PDF (optional)</legend>
+      <Box label="Base PDF (optional)">
         <div className="form-row">
           <Select
             label="Select PDF"
@@ -239,7 +277,7 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
             <input ref={fileInputRef} type="file" accept="application/pdf" onChange={handleFileUpload} />
           </label>
         </div>
-      </fieldset>
+      </Box>
     </Modal>
   );
 }

@@ -16,7 +16,7 @@ export function Select({ label, value, onChange, options, error }: SelectProps) 
     <label>
       <span>
         {label}
-        {error && <span className="error-text">{error}</span>}
+        {error && <span className="error-text">[{error}]</span>}
       </span>
       <select value={value} onChange={(e) => onChange(e.target.value)} className={error ? "error" : undefined}>
         {options.map((opt) => (

@@ -258,9 +258,30 @@ fieldset {
   margin-bottom: 8px;
 }
 
+fieldset.error {
+  border-color: var(--danger);
+}
+
 legend {
   color: var(--accent);
   padding: 0 4px;
+}
+
+fieldset.error legend {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+legend .legend-border {
+  flex: 1;
+  height: 1px;
+  background: var(--danger);
+  margin: 0 8px;
+}
+
+legend .error-text {
+  color: var(--danger);
 }
 
 label {

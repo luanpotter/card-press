@@ -11,7 +11,7 @@ export function Input({ label, value, onChange, placeholder, error }: InputProps
     <label>
       <span>
         {label}
-        {error && <span className="error-text">{error}</span>}
+        {error && <span className="error-text">[{error}]</span>}
       </span>
       <input
         type="text"

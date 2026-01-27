@@ -2,6 +2,7 @@ import { Button } from "@/app/components/Button";
 import { Input } from "@/app/components/Input";
 import { Select } from "@/app/components/Select";
 import { usePdfStore } from "@/app/store/pdfs";
+import { CardSizePreset, CARD_SIZE_PRESETS, getCardSizePreset } from "@/types/card";
 import type { Dimension } from "@/types/dimension";
 import { PAGE_DIMENSIONS, PageSize } from "@/types/page";
 import { type Slot, type Template, DEFAULT_CARD_SIZE } from "@/types/template";
@@ -15,7 +16,13 @@ interface TemplateModalProps {
 
 const PAGE_SIZE_OPTIONS = [
   { value: PageSize.A4, label: "A4 (210×297mm)" },
-  { value: PageSize.Letter, label: "Letter (216×279mm)" },
+  { value: PageSize.Letter, label: "Letter (215.9×279.4mm)" },
+];
+
+const CARD_SIZE_OPTIONS = [
+  { value: CardSizePreset.MTG, label: "MTG (63×88mm)" },
+  { value: CardSizePreset.YuGiOh, label: "Yu-Gi-Oh (59×86mm)" },
+  { value: CardSizePreset.Custom, label: "Custom" },
 ];
 
 export function TemplateModal({ template, onSave, onClose }: TemplateModalProps) {
@@ -25,6 +32,9 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
   const [name, setName] = useState(template?.name ?? "");
   const [pageSize, setPageSize] = useState<PageSize>(template?.pageSize ?? PageSize.A4);
   const [cardSize, setCardSize] = useState<Dimension>(template?.cardSize ?? DEFAULT_CARD_SIZE);
+  const [cardSizePreset, setCardSizePreset] = useState<CardSizePreset>(
+    getCardSizePreset(template?.cardSize ?? DEFAULT_CARD_SIZE)
+  );
   const [slots, setSlots] = useState<Slot[]>(template?.slots ?? []);
   const [basePdfId, setBasePdfId] = useState<string | undefined>(template?.basePdfId);
 
@@ -131,10 +141,28 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
             <legend>Card Size (mm)</legend>
             <div className="form-row">
               <label>
+                Preset
+                <Select
+                  value={cardSizePreset}
+                  onChange={(v) => {
+                    const preset = v as CardSizePreset;
+                    setCardSizePreset(preset);
+                    if (preset !== CardSizePreset.Custom) {
+                      setCardSize(CARD_SIZE_PRESETS[preset]);
+                    }
+                  }}
+                  options={CARD_SIZE_OPTIONS}
+                />
+              </label>
+              <label>
                 Width
                 <Input
                   value={cardSize.width.toString()}
-                  onChange={(v) => setCardSize({ ...cardSize, width: parseFloat(v) || 0 })}
+                  onChange={(v) => {
+                    const width = parseFloat(v) || 0;
+                    setCardSize({ ...cardSize, width });
+                    setCardSizePreset(CardSizePreset.Custom);
+                  }}
                   placeholder="63"
                 />
               </label>
@@ -142,7 +170,11 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
                 Height
                 <Input
                   value={cardSize.height.toString()}
-                  onChange={(v) => setCardSize({ ...cardSize, height: parseFloat(v) || 0 })}
+                  onChange={(v) => {
+                    const height = parseFloat(v) || 0;
+                    setCardSize({ ...cardSize, height });
+                    setCardSizePreset(CardSizePreset.Custom);
+                  }}
                   placeholder="88"
                 />
               </label>

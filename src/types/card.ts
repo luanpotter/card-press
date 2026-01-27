@@ -2,7 +2,7 @@ import type { Dimension } from "@/types/dimension";
 
 export enum CardSizePreset {
   MTG = "MTG",
-  YuGiOh = "Yu-Gi-Oh",
+  YuGiOh = "Yu-Gi-Oh!",
   Custom = "Custom",
 }
 

@@ -14,16 +14,18 @@ interface TemplateModalProps {
   onClose: () => void;
 }
 
-const PAGE_SIZE_OPTIONS = [
-  { value: PageSize.A4, label: "A4 (210×297mm)" },
-  { value: PageSize.Letter, label: "Letter (215.9×279.4mm)" },
-];
+const PAGE_SIZE_OPTIONS = Object.values(PageSize).map((size) => {
+  const dim = PAGE_DIMENSIONS[size];
+  return { value: size, label: `${size} (${String(dim.width)}x${String(dim.height)}mm)` };
+});
 
-const CARD_SIZE_OPTIONS = [
-  { value: CardSizePreset.MTG, label: "MTG (63×88mm)" },
-  { value: CardSizePreset.YuGiOh, label: "Yu-Gi-Oh (59×86mm)" },
-  { value: CardSizePreset.Custom, label: "Custom" },
-];
+const CARD_SIZE_OPTIONS = Object.values(CardSizePreset).map((preset) => {
+  if (preset === CardSizePreset.Custom) {
+    return { value: preset, label: "Custom" };
+  }
+  const dim = CARD_SIZE_PRESETS[preset];
+  return { value: preset, label: `${preset} (${String(dim.width)}x${String(dim.height)}mm)` };
+});
 
 export function TemplateModal({ template, onSave, onClose }: TemplateModalProps) {
   const { pdfs, addPdf } = usePdfStore();
@@ -119,7 +121,7 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{template ? "Edit Template" : "New Template"}</h2>
-          <Button onClick={onClose}>×</Button>
+          <Button onClick={onClose}>x</Button>
         </div>
 
         <div className="modal-body">
@@ -222,7 +224,7 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
                   <span key={i} className="slot-tag">
                     ({slot.x.toFixed(1)}, {slot.y.toFixed(1)})
                     <button type="button" onClick={() => handleDeleteSlot(i)}>
-                      ×
+                      x
                     </button>
                   </span>
                 ))}

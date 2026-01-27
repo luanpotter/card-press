@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from "react";
-import type { Dimension } from "@/types/dimension";
-import { type Template, type Slot, PageSize, DEFAULT_CARD_SIZE, PAGE_DIMENSIONS } from "@/types/template";
-import { usePdfStore } from "@/app/store/pdfs";
+import { Button } from "@/app/components/Button";
 import { Input } from "@/app/components/Input";
 import { Select } from "@/app/components/Select";
-import { Button } from "@/app/components/Button";
+import { usePdfStore } from "@/app/store/pdfs";
+import type { Dimension } from "@/types/dimension";
+import { PAGE_DIMENSIONS, PageSize } from "@/types/page";
+import { type Slot, type Template, DEFAULT_CARD_SIZE } from "@/types/template";
+import { useEffect, useRef, useState } from "react";
 
 interface TemplateModalProps {
   template: Template | undefined;

@@ -1,9 +1,5 @@
 import type { Dimension } from "@/types/dimension";
-
-export enum PageSize {
-  A4 = "A4",
-  Letter = "Letter",
-}
+import type { PageSize } from "@/types/page";
 
 export interface Slot {
   x: number;
@@ -20,8 +16,3 @@ export interface Template {
 }
 
 export const DEFAULT_CARD_SIZE: Dimension = { width: 63, height: 88 };
-
-export const PAGE_DIMENSIONS: Record<PageSize, Dimension> = {
-  [PageSize.A4]: { width: 210, height: 297 },
-  [PageSize.Letter]: { width: 216, height: 279 },
-};

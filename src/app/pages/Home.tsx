@@ -1,8 +1,7 @@
 export function Home() {
   return (
     <section>
-      <h1>Card Press</h1>
-      <p>Welcome to Card Press.</p>
+      <p>Card Press home.</p>
     </section>
   );
 }

@@ -32,6 +32,7 @@ menu {
   padding: 4px;
   display: flex;
   gap: 4px;
+  margin-bottom: 8px;
 }
 
 menu > a {
@@ -46,6 +47,10 @@ menu > a::after {
 menu > a.active > span {
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+main {
+  padding: 4px;
 }
 
 #root {

@@ -212,13 +212,31 @@ th {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
+  padding: 4px;
+  background: var(--bg);
 }
 
 .modal-header h2 {
   margin: 0;
   font-size: 1em;
+  font-weight: normal;
+}
+
+.modal-header button {
+  padding: 0 4px;
+  border: none;
+  background: none;
+  line-height: 1;
+}
+
+.modal-header button:hover {
+  background: none;
+  color: var(--accent);
+}
+
+.modal-header button:focus {
+  outline: none;
+  border: none;
 }
 
 .modal-body {

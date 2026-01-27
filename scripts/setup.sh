@@ -119,6 +119,34 @@ cd "$(dirname "$0")/.."
 bun install
 success "Dependencies installed"
 
+# Setup git pre-commit hook
+setup_git_hook() {
+    local hook_path=".git/hooks/pre-commit"
+    local expected_content='#!/usr/bin/env bash
+./scripts/lint.sh'
+
+    if [[ ! -d ".git" ]]; then
+        info "Not a git repository, skipping hook setup"
+        return
+    fi
+
+    mkdir -p ".git/hooks"
+
+    if [[ -f "$hook_path" ]]; then
+        if grep -q "scripts/lint.sh" "$hook_path"; then
+            success "Pre-commit hook already configured"
+            return
+        fi
+    fi
+
+    info "Setting up pre-commit hook..."
+    echo "$expected_content" >"$hook_path"
+    chmod +x "$hook_path"
+    success "Pre-commit hook installed"
+}
+
+setup_git_hook
+
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}✓ Setup complete!${NC}"

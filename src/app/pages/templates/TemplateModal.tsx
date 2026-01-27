@@ -1,12 +1,13 @@
 import { Button } from "@/app/components/Button";
 import { Input } from "@/app/components/Input";
+import { Modal } from "@/app/components/Modal";
 import { Select } from "@/app/components/Select";
 import { usePdfStore } from "@/app/store/pdfs";
 import { CardSizePreset, CARD_SIZE_PRESETS, getCardSizePreset } from "@/types/card";
 import type { Dimension } from "@/types/dimension";
 import { PAGE_DIMENSIONS, PageSize } from "@/types/page";
 import { type Slot, type Template, DEFAULT_CARD_SIZE } from "@/types/template";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 interface TemplateModalProps {
   template: Template | undefined;
@@ -46,14 +47,6 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
   const [gridCols, setGridCols] = useState("3");
   const [gridRows, setGridRows] = useState("3");
   const [gridGap, setGridGap] = useState("5");
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
 
   const handleSave = () => {
     if (name.trim() === "") return;
@@ -116,148 +109,137 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
 
   const basePdfOptions = [{ value: "", label: "None" }, ...pdfs.map((p) => ({ value: p.id, label: p.name }))];
 
+  const footer = (
+    <>
+      <Button onClick={onClose}>Cancel</Button>
+      <Button onClick={handleSave} variant="accent">
+        {template ? "Update" : "Create"}
+      </Button>
+    </>
+  );
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{template ? "Edit Template" : "New Template"}</h2>
-          <Button onClick={onClose}>x</Button>
+    <Modal title={template ? "Edit Template" : "New Template"} onClose={onClose} footer={footer}>
+      <fieldset>
+        <legend>Basic Info</legend>
+        <div className="form-row">
+          <label>
+            Name
+            <Input value={name} onChange={setName} placeholder="Template name" />
+          </label>
+          <label>
+            Page Size
+            <Select value={pageSize} onChange={(v) => setPageSize(v as PageSize)} options={PAGE_SIZE_OPTIONS} />
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Card Size (mm)</legend>
+        <div className="form-row">
+          <label>
+            Preset
+            <Select
+              value={cardSizePreset}
+              onChange={(v) => {
+                const preset = v as CardSizePreset;
+                setCardSizePreset(preset);
+                if (preset !== CardSizePreset.Custom) {
+                  setCardSize(CARD_SIZE_PRESETS[preset]);
+                }
+              }}
+              options={CARD_SIZE_OPTIONS}
+            />
+          </label>
+          <label>
+            Width
+            <Input
+              value={cardSize.width.toString()}
+              onChange={(v) => {
+                const width = parseFloat(v) || 0;
+                setCardSize({ ...cardSize, width });
+                setCardSizePreset(CardSizePreset.Custom);
+              }}
+              placeholder="63"
+            />
+          </label>
+          <label>
+            Height
+            <Input
+              value={cardSize.height.toString()}
+              onChange={(v) => {
+                const height = parseFloat(v) || 0;
+                setCardSize({ ...cardSize, height });
+                setCardSizePreset(CardSizePreset.Custom);
+              }}
+              placeholder="88"
+            />
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Slots ({slots.length})</legend>
+        <div className="form-row">
+          <label>
+            Cols
+            <Input value={gridCols} onChange={setGridCols} placeholder="3" />
+          </label>
+          <label>
+            Rows
+            <Input value={gridRows} onChange={setGridRows} placeholder="3" />
+          </label>
+          <label>
+            Gap (mm)
+            <Input value={gridGap} onChange={setGridGap} placeholder="5" />
+          </label>
+          <Button onClick={handleGenerateGrid}>Generate Grid</Button>
         </div>
 
-        <div className="modal-body">
-          <fieldset>
-            <legend>Basic Info</legend>
-            <div className="form-row">
-              <label>
-                Name
-                <Input value={name} onChange={setName} placeholder="Template name" />
-              </label>
-              <label>
-                Page Size
-                <Select value={pageSize} onChange={(v) => setPageSize(v as PageSize)} options={PAGE_SIZE_OPTIONS} />
-              </label>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Card Size (mm)</legend>
-            <div className="form-row">
-              <label>
-                Preset
-                <Select
-                  value={cardSizePreset}
-                  onChange={(v) => {
-                    const preset = v as CardSizePreset;
-                    setCardSizePreset(preset);
-                    if (preset !== CardSizePreset.Custom) {
-                      setCardSize(CARD_SIZE_PRESETS[preset]);
-                    }
-                  }}
-                  options={CARD_SIZE_OPTIONS}
-                />
-              </label>
-              <label>
-                Width
-                <Input
-                  value={cardSize.width.toString()}
-                  onChange={(v) => {
-                    const width = parseFloat(v) || 0;
-                    setCardSize({ ...cardSize, width });
-                    setCardSizePreset(CardSizePreset.Custom);
-                  }}
-                  placeholder="63"
-                />
-              </label>
-              <label>
-                Height
-                <Input
-                  value={cardSize.height.toString()}
-                  onChange={(v) => {
-                    const height = parseFloat(v) || 0;
-                    setCardSize({ ...cardSize, height });
-                    setCardSizePreset(CardSizePreset.Custom);
-                  }}
-                  placeholder="88"
-                />
-              </label>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Slots ({slots.length})</legend>
-            <div className="form-row">
-              <label>
-                Cols
-                <Input value={gridCols} onChange={setGridCols} placeholder="3" />
-              </label>
-              <label>
-                Rows
-                <Input value={gridRows} onChange={setGridRows} placeholder="3" />
-              </label>
-              <label>
-                Gap (mm)
-                <Input value={gridGap} onChange={setGridGap} placeholder="5" />
-              </label>
-              <Button onClick={handleGenerateGrid}>Generate Grid</Button>
-            </div>
-
-            <div className="form-row">
-              <label>
-                X (mm)
-                <Input value={newSlotX} onChange={setNewSlotX} placeholder="0" />
-              </label>
-              <label>
-                Y (mm)
-                <Input value={newSlotY} onChange={setNewSlotY} placeholder="0" />
-              </label>
-              <Button onClick={handleAddSlot}>Add Slot</Button>
-              {slots.length > 0 && (
-                <Button onClick={() => setSlots([])} variant="danger">
-                  Clear All
-                </Button>
-              )}
-            </div>
-
-            {slots.length > 0 && (
-              <div className="slots-list">
-                {slots.map((slot, i) => (
-                  <span key={i} className="slot-tag">
-                    ({slot.x.toFixed(1)}, {slot.y.toFixed(1)})
-                    <button type="button" onClick={() => handleDeleteSlot(i)}>
-                      x
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </fieldset>
-
-          <fieldset>
-            <legend>Base PDF (optional)</legend>
-            <div className="form-row">
-              <label>
-                Select PDF
-                <Select
-                  value={basePdfId ?? ""}
-                  onChange={(v) => setBasePdfId(v || undefined)}
-                  options={basePdfOptions}
-                />
-              </label>
-              <label>
-                Upload New
-                <input ref={fileInputRef} type="file" accept="application/pdf" onChange={handleFileUpload} />
-              </label>
-            </div>
-          </fieldset>
+        <div className="form-row">
+          <label>
+            X (mm)
+            <Input value={newSlotX} onChange={setNewSlotX} placeholder="0" />
+          </label>
+          <label>
+            Y (mm)
+            <Input value={newSlotY} onChange={setNewSlotY} placeholder="0" />
+          </label>
+          <Button onClick={handleAddSlot}>Add Slot</Button>
+          {slots.length > 0 && (
+            <Button onClick={() => setSlots([])} variant="danger">
+              Clear All
+            </Button>
+          )}
         </div>
 
-        <div className="modal-footer">
-          <Button onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} variant="accent">
-            {template ? "Update" : "Create"}
-          </Button>
+        {slots.length > 0 && (
+          <div className="slots-list">
+            {slots.map((slot, i) => (
+              <span key={i} className="slot-tag">
+                ({slot.x.toFixed(1)}, {slot.y.toFixed(1)})
+                <button type="button" onClick={() => handleDeleteSlot(i)}>
+                  x
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </fieldset>
+
+      <fieldset>
+        <legend>Base PDF (optional)</legend>
+        <div className="form-row">
+          <label>
+            Select PDF
+            <Select value={basePdfId ?? ""} onChange={(v) => setBasePdfId(v || undefined)} options={basePdfOptions} />
+          </label>
+          <label>
+            Upload New
+            <input ref={fileInputRef} type="file" accept="application/pdf" onChange={handleFileUpload} />
+          </label>
         </div>
-      </div>
-    </div>
+      </fieldset>
+    </Modal>
   );
 }

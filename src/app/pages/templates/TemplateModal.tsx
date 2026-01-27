@@ -1,12 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  type Template,
-  type Slot,
-  type CardSize,
-  PageSize,
-  DEFAULT_CARD_SIZE,
-  PAGE_DIMENSIONS,
-} from "@/types/template";
+import type { Dimension } from "@/types/dimension";
+import { type Template, type Slot, PageSize, DEFAULT_CARD_SIZE, PAGE_DIMENSIONS } from "@/types/template";
 import { usePdfStore } from "@/app/store/pdfs";
 import { Input } from "@/app/components/Input";
 import { Select } from "@/app/components/Select";
@@ -29,7 +23,7 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
 
   const [name, setName] = useState(template?.name ?? "");
   const [pageSize, setPageSize] = useState<PageSize>(template?.pageSize ?? PageSize.A4);
-  const [cardSize, setCardSize] = useState<CardSize>(template?.cardSize ?? DEFAULT_CARD_SIZE);
+  const [cardSize, setCardSize] = useState<Dimension>(template?.cardSize ?? DEFAULT_CARD_SIZE);
   const [slots, setSlots] = useState<Slot[]>(template?.slots ?? []);
   const [basePdfId, setBasePdfId] = useState<string | undefined>(template?.basePdfId);
 

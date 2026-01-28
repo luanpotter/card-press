@@ -1,18 +1,31 @@
 import { useEffect, useRef } from "react";
+import { loadDefaultTemplates } from "@/app/store/loadDefaults";
 import { useSessionStore } from "@/app/store/sessions";
 import { useTemplateStore } from "@/app/store/templates";
 
 export function Home() {
   const { sessions, addSession, getActiveSession } = useSessionStore();
   const { templates, defaultTemplateId } = useTemplateStore();
-  const creatingRef = useRef(false);
+  const initRef = useRef(false);
 
   useEffect(() => {
-    // Auto-create a session if none exists and templates are available
-    // Use ref to prevent double creation in StrictMode
+    // Use ref to prevent double initialization in StrictMode
+    if (initRef.current) return;
+
+    // If no templates and no sessions, initialize with defaults
+    if (templates.length === 0 && sessions.length === 0) {
+      initRef.current = true;
+      const defaultId = loadDefaultTemplates();
+      if (defaultId) {
+        addSession({ name: "New Session", templateId: defaultId });
+      }
+      return;
+    }
+
+    // If templates exist but no sessions, create a session
     const firstTemplate = templates[0];
-    if (sessions.length === 0 && firstTemplate && !creatingRef.current) {
-      creatingRef.current = true;
+    if (sessions.length === 0 && firstTemplate) {
+      initRef.current = true;
       const templateId = defaultTemplateId ?? firstTemplate.id;
       addSession({ name: "New Session", templateId });
     }

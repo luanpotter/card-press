@@ -1,6 +1,7 @@
 import { Box } from "@/app/components/Box";
 import { Button } from "@/app/components/Button";
 import { ConfirmModal } from "@/app/components/ConfirmModal";
+import { loadDefaultTemplates } from "@/app/store/loadDefaults";
 import { usePdfStore } from "@/app/store/pdfs";
 import { useSessionStore } from "@/app/store/sessions";
 import { useTemplateStore } from "@/app/store/templates";
@@ -8,9 +9,9 @@ import { DEFAULT_TEMPLATES } from "@/types/template";
 import { useState } from "react";
 
 export function Config() {
-  const { pdfs, prunePdfs, addPdf } = usePdfStore();
+  const { pdfs, prunePdfs } = usePdfStore();
   const { sessions, deleteAllSessions } = useSessionStore();
-  const { templates, deleteAllTemplates, addTemplate, defaultTemplateId, setDefaultTemplate } = useTemplateStore();
+  const { templates, deleteAllTemplates } = useTemplateStore();
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
   const handlePrunePdfs = () => {
@@ -28,23 +29,7 @@ export function Config() {
   const missingDefaults = DEFAULT_TEMPLATES.filter((dt) => !existingNames.has(dt.name));
 
   const handleLoadDefaults = () => {
-    for (const defaultTemplate of missingDefaults) {
-      // If template has a bundled PDF, add it to the store first
-      let basePdfId: string | undefined;
-      if (defaultTemplate.bundledPdf) {
-        basePdfId = addPdf(defaultTemplate.bundledPdf.name, defaultTemplate.bundledPdf.dataUrl);
-      }
-
-      // Create template without the bundledPdf and isDefault fields
-      const { bundledPdf: _unused, isDefault, ...templateData } = defaultTemplate;
-      void _unused; // Intentionally unused - we strip this field from the template
-      const id = addTemplate({ ...templateData, basePdfId });
-
-      // Set as default if marked and no default exists yet
-      if (isDefault && !defaultTemplateId) {
-        setDefaultTemplate(id);
-      }
-    }
+    loadDefaultTemplates();
   };
 
   const usedCount = new Set(templates.map((t) => t.basePdfId).filter((id) => id !== undefined)).size;

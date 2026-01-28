@@ -7,6 +7,7 @@ interface TemplateState {
   addTemplate: (template: Omit<Template, "id">) => void;
   updateTemplate: (id: string, template: Omit<Template, "id">) => void;
   deleteTemplate: (id: string) => void;
+  deleteAllTemplates: () => void;
 }
 
 export const useTemplateStore = create<TemplateState>()(
@@ -25,6 +26,7 @@ export const useTemplateStore = create<TemplateState>()(
         set((state) => ({
           templates: state.templates.filter((t) => t.id !== id),
         })),
+      deleteAllTemplates: () => set({ templates: [] }),
     }),
     { name: "card-press-templates" }
   )

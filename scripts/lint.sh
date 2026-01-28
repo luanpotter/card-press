@@ -53,6 +53,10 @@ require_cmd shellcheck
 require_cmd shfmt
 require_cmd actionlint
 
+# Generate assets first (needed for TypeScript/ESLint to see generated files)
+echo -e "${CYAN}▶${NC} Generating assets..."
+./scripts/generate-assets.sh
+
 # TypeScript type checking
 run_check "TypeScript (tsc --noEmit)" bun run tsc --noEmit
 

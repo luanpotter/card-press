@@ -6,6 +6,9 @@ out
 dist
 *.tgz
 
+# generated files
+src/generated
+
 # code coverage
 coverage
 *.lcov

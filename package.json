@@ -6,11 +6,12 @@
   "main": "src/index.tsx",
   "module": "src/index.tsx",
   "scripts": {
-    "dev": "bun --hot src/index.tsx",
-    "build": "bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
+    "generate": "./scripts/generate-assets.sh",
+    "dev": "bun run generate && bun --hot src/index.tsx",
+    "build": "bun run generate && bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
     "start": "NODE_ENV=production bun src/index.tsx",
-    "lint": "eslint src && prettier --check src",
-    "lint:fix": "eslint src --fix && prettier --write src",
+    "lint": "bun run generate && eslint src && prettier --check src",
+    "lint:fix": "bun run generate && eslint src --fix && prettier --write src",
     "format": "prettier --write src"
   },
   "dependencies": {

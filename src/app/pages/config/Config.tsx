@@ -7,7 +7,7 @@ import { DEFAULT_TEMPLATES } from "@/types/template";
 import { useState } from "react";
 
 export function Config() {
-  const { pdfs, prunePdfs } = usePdfStore();
+  const { pdfs, prunePdfs, addPdf } = usePdfStore();
   const { templates, deleteAllTemplates, addTemplate } = useTemplateStore();
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
@@ -25,8 +25,17 @@ export function Config() {
   const missingDefaults = DEFAULT_TEMPLATES.filter((dt) => !existingNames.has(dt.name));
 
   const handleLoadDefaults = () => {
-    for (const template of missingDefaults) {
-      addTemplate(template);
+    for (const defaultTemplate of missingDefaults) {
+      // If template has a bundled PDF, add it to the store first
+      let basePdfId: string | undefined;
+      if (defaultTemplate.bundledPdf) {
+        basePdfId = addPdf(defaultTemplate.bundledPdf.name, defaultTemplate.bundledPdf.dataUrl);
+      }
+
+      // Create template without the bundledPdf field
+      const { bundledPdf: _unused, ...templateData } = defaultTemplate;
+      void _unused; // Intentionally unused - we strip this field from the template
+      addTemplate({ ...templateData, basePdfId });
     }
   };
 

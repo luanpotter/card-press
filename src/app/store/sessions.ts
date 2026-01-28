@@ -11,6 +11,7 @@ interface SessionState {
   deleteAllSessions: () => void;
   setActiveSession: (id: string) => void;
   getActiveSession: () => Session | undefined;
+  moveSession: (fromIndex: number, toIndex: number) => void;
   // Card operations
   addCard: (sessionId: string, card: Omit<Card, "id">) => string;
   updateCard: (sessionId: string, cardId: string, card: Partial<Omit<Card, "id">>) => void;
@@ -45,6 +46,15 @@ export const useSessionStore = create<SessionState>()(
           return { sessions: newSessions, activeSessionId: newActive };
         }),
       deleteAllSessions: () => set({ sessions: [], activeSessionId: null }),
+      moveSession: (fromIndex, toIndex) =>
+        set((state) => {
+          const sessions = [...state.sessions];
+          const moved = sessions[fromIndex];
+          if (!moved) return state;
+          sessions.splice(fromIndex, 1);
+          sessions.splice(toIndex, 0, moved);
+          return { sessions };
+        }),
       setActiveSession: (id) => {
         const { sessions } = get();
         if (sessions.some((s) => s.id === id)) {

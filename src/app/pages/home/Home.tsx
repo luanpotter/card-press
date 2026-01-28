@@ -6,6 +6,7 @@ import { useImageStore } from "@/app/store/images";
 import { Box } from "@/app/components/Box";
 import { Button } from "@/app/components/Button";
 import { ConfirmModal } from "@/app/components/ConfirmModal";
+import { Table, type Column } from "@/app/components/Table";
 import { CardModal } from "@/app/pages/home/CardModal";
 import type { Card } from "@/types/session";
 
@@ -126,6 +127,7 @@ export function Home() {
     moveCard(activeSession.id, fromIndex, toIndex);
   };
 
+  // Drag handlers for icons view only
   const handleDragStart = (index: number) => {
     setDragIndex(index);
   };
@@ -161,6 +163,51 @@ export function Home() {
 
   const cards = activeSession.cards;
 
+  const cardColumns: Column<Card>[] = [
+    {
+      key: "name",
+      header: "Name",
+      main: true,
+      render: (card) => card.name,
+    },
+    {
+      key: "count",
+      header: "Count",
+      width: "80px",
+      render: (card) => (
+        <input
+          type="number"
+          value={card.count}
+          onChange={(e) => handleCountChange(card, e.target.value)}
+          min={1}
+          style={{ width: "60px" }}
+        />
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      render: (card, index) => (
+        <div className="actions">
+          <Button onClick={() => handleMoveCard(index, index - 1)} disabled={index === 0} title="Move up">
+            ↑
+          </Button>
+          <Button
+            onClick={() => handleMoveCard(index, index + 1)}
+            disabled={index === cards.length - 1}
+            title="Move down"
+          >
+            ↓
+          </Button>
+          <Button onClick={() => setEditingCard(card)}>Edit</Button>
+          <Button onClick={() => setDeletingCard(card)} variant="danger">
+            Delete
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <section>
       <Box label="Session">
@@ -194,63 +241,7 @@ export function Home() {
         </div>
 
         {cards.length > 0 && viewMode === "list" && (
-          <table>
-            <thead>
-              <tr>
-                <th style={{ width: "32px" }}></th>
-                <th>Name</th>
-                <th style={{ width: "80px" }}>Count</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cards.map((card, index) => (
-                <tr
-                  key={card.id}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  style={{ opacity: dragIndex === index ? 0.5 : 1 }}
-                >
-                  <td
-                    draggable
-                    onDragStart={() => handleDragStart(index)}
-                    onDragEnd={handleDragEnd}
-                    className="drag-handle"
-                    title="Drag to reorder"
-                  >
-                    ⠿
-                  </td>
-                  <td>{card.name}</td>
-                  <td>
-                    <input
-                      type="number"
-                      value={card.count}
-                      onChange={(e) => handleCountChange(card, e.target.value)}
-                      min={1}
-                      style={{ width: "60px" }}
-                    />
-                  </td>
-                  <td>
-                    <div className="actions">
-                      <Button onClick={() => handleMoveCard(index, index - 1)} disabled={index === 0} title="Move up">
-                        ↑
-                      </Button>
-                      <Button
-                        onClick={() => handleMoveCard(index, index + 1)}
-                        disabled={index === cards.length - 1}
-                        title="Move down"
-                      >
-                        ↓
-                      </Button>
-                      <Button onClick={() => setEditingCard(card)}>Edit</Button>
-                      <Button onClick={() => setDeletingCard(card)} variant="danger">
-                        Delete
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Table data={cards} columns={cardColumns} keyExtractor={(c) => c.id} onReorder={handleMoveCard} />
         )}
 
         {cards.length > 0 && viewMode === "images" && (

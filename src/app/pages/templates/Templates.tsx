@@ -5,11 +5,19 @@ import { usePdfStore } from "@/app/store/pdfs";
 import type { Template } from "@/types/template";
 import { Button } from "@/app/components/Button";
 import { ConfirmModal } from "@/app/components/ConfirmModal";
+import { Table, type Column } from "@/app/components/Table";
 import { TemplateModal } from "@/app/pages/templates/TemplateModal";
 
 export function Templates() {
-  const { templates, addTemplate, updateTemplate, deleteTemplate, defaultTemplateId, setDefaultTemplate } =
-    useTemplateStore();
+  const {
+    templates,
+    addTemplate,
+    updateTemplate,
+    deleteTemplate,
+    defaultTemplateId,
+    setDefaultTemplate,
+    moveTemplate,
+  } = useTemplateStore();
   const { sessions, deleteSession } = useSessionStore();
   const { getPdf } = usePdfStore();
   const [modalOpen, setModalOpen] = useState(false);
@@ -65,6 +73,55 @@ export function Templates() {
     return `Are you sure you want to delete "${template.name}"? This will also delete ${String(affectedSessions.length)} ${sessionWord} using this template.`;
   };
 
+  const columns: Column<Template>[] = [
+    {
+      key: "name",
+      header: "Name",
+      main: true,
+      render: (template) => (
+        <>
+          {template.name}
+          {template.id === defaultTemplateId && <span className="badge">Default</span>}
+        </>
+      ),
+    },
+    {
+      key: "page",
+      header: "Page",
+      render: (template) => template.pageSize,
+    },
+    {
+      key: "card",
+      header: "Card (mm)",
+      render: (template) => `${String(template.cardSize.width)}×${String(template.cardSize.height)}`,
+    },
+    {
+      key: "slots",
+      header: "Slots",
+      render: (template) => template.slots.length,
+    },
+    {
+      key: "basePdf",
+      header: "Base PDF",
+      render: (template) => (template.basePdfId ? (getPdf(template.basePdfId)?.name ?? "—") : "—"),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      render: (template) => (
+        <div className="actions">
+          <Button onClick={() => handleEdit(template)}>Edit</Button>
+          <Button onClick={() => handleDeleteClick(template)} variant="danger">
+            Delete
+          </Button>
+          {template.id !== defaultTemplateId && (
+            <Button onClick={() => setDefaultTemplate(template.id)}>Set Default</Button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <section>
       <Button onClick={handleNew} variant="accent">
@@ -72,45 +129,7 @@ export function Templates() {
       </Button>
 
       {templates.length > 0 && (
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Page</th>
-              <th>Card (mm)</th>
-              <th>Slots</th>
-              <th>Base PDF</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {templates.map((template) => (
-              <tr key={template.id}>
-                <td>
-                  {template.name}
-                  {template.id === defaultTemplateId && <span className="badge">Default</span>}
-                </td>
-                <td>{template.pageSize}</td>
-                <td>
-                  {template.cardSize.width}×{template.cardSize.height}
-                </td>
-                <td>{template.slots.length}</td>
-                <td>{template.basePdfId ? (getPdf(template.basePdfId)?.name ?? "—") : "—"}</td>
-                <td>
-                  <div className="actions">
-                    <Button onClick={() => handleEdit(template)}>Edit</Button>
-                    <Button onClick={() => handleDeleteClick(template)} variant="danger">
-                      Delete
-                    </Button>
-                    {template.id !== defaultTemplateId && (
-                      <Button onClick={() => setDefaultTemplate(template.id)}>Set Default</Button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <Table data={templates} columns={columns} keyExtractor={(t) => t.id} onReorder={moveTemplate} />
       )}
 
       {templates.length === 0 && <p className="muted">No templates yet.</p>}

@@ -10,6 +10,7 @@ interface TemplateState {
   deleteTemplate: (id: string) => void;
   deleteAllTemplates: () => void;
   setDefaultTemplate: (id: string) => void;
+  moveTemplate: (fromIndex: number, toIndex: number) => void;
 }
 
 export const useTemplateStore = create<TemplateState>()(
@@ -39,6 +40,15 @@ export const useTemplateStore = create<TemplateState>()(
           return { templates: newTemplates, defaultTemplateId: newDefault };
         }),
       deleteAllTemplates: () => set({ templates: [], defaultTemplateId: null }),
+      moveTemplate: (fromIndex, toIndex) =>
+        set((state) => {
+          const templates = [...state.templates];
+          const moved = templates[fromIndex];
+          if (!moved) return state;
+          templates.splice(fromIndex, 1);
+          templates.splice(toIndex, 0, moved);
+          return { templates };
+        }),
       setDefaultTemplate: (id) => {
         const { templates } = get();
         if (templates.some((t) => t.id === id)) {

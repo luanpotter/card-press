@@ -4,10 +4,12 @@ import { useTemplateStore } from "@/app/store/templates";
 import type { Session } from "@/types/session";
 import { Button } from "@/app/components/Button";
 import { ConfirmModal } from "@/app/components/ConfirmModal";
+import { Table, type Column } from "@/app/components/Table";
 import { SessionModal } from "@/app/pages/sessions/SessionModal";
 
 export function Sessions() {
-  const { sessions, activeSessionId, addSession, updateSession, deleteSession, setActiveSession } = useSessionStore();
+  const { sessions, activeSessionId, addSession, updateSession, deleteSession, setActiveSession, moveSession } =
+    useSessionStore();
   const { templates } = useTemplateStore();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<Session | undefined>();
@@ -54,6 +56,38 @@ export function Sessions() {
     setDeletingSession(undefined);
   };
 
+  const columns: Column<Session>[] = [
+    {
+      key: "name",
+      header: "Name",
+      main: true,
+      render: (session) => (
+        <>
+          {session.name}
+          {session.id === activeSessionId && <span className="badge">Active</span>}
+        </>
+      ),
+    },
+    {
+      key: "template",
+      header: "Template",
+      render: (session) => getTemplateName(session.templateId),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      render: (session) => (
+        <div className="actions">
+          <Button onClick={() => handleEdit(session)}>Edit</Button>
+          <Button onClick={() => handleDeleteClick(session)} variant="danger">
+            Delete
+          </Button>
+          {session.id !== activeSessionId && <Button onClick={() => setActiveSession(session.id)}>Set Active</Button>}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <section>
       <Button onClick={handleNew} variant="accent" disabled={templates.length === 0}>
@@ -63,37 +97,7 @@ export function Sessions() {
       {templates.length === 0 && <p className="muted">Create a template first before creating sessions.</p>}
 
       {sessions.length > 0 && (
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Template</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sessions.map((session) => (
-              <tr key={session.id}>
-                <td>
-                  {session.name}
-                  {session.id === activeSessionId && <span className="badge">Active</span>}
-                </td>
-                <td>{getTemplateName(session.templateId)}</td>
-                <td>
-                  <div className="actions">
-                    <Button onClick={() => handleEdit(session)}>Edit</Button>
-                    <Button onClick={() => handleDeleteClick(session)} variant="danger">
-                      Delete
-                    </Button>
-                    {session.id !== activeSessionId && (
-                      <Button onClick={() => setActiveSession(session.id)}>Set Active</Button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <Table data={sessions} columns={columns} keyExtractor={(s) => s.id} onReorder={moveSession} />
       )}
 
       {sessions.length === 0 && templates.length > 0 && <p className="muted">No sessions yet.</p>}

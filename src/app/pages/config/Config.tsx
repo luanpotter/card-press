@@ -59,6 +59,15 @@ export function Config() {
         </Element>
       </Box>
 
+      <Box label="Sessions">
+        <Element>
+          <span>Sessions: {sessions.length}</span>
+          <Button onClick={deleteAllSessions} variant="danger" disabled={sessions.length === 0}>
+            Delete All Sessions
+          </Button>
+        </Element>
+      </Box>
+
       {showDeleteAllModal && (
         <ConfirmModal
           title="Delete All Templates"

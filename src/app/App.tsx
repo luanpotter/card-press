@@ -10,6 +10,7 @@ export function App() {
         <Link href="/sessions">Sessions</Link>
         <Link href="/templates">Templates</Link>
         <Link href="/config">Config</Link>
+        <Link href="/about">About</Link>
       </menu>
       <main>
         <Routes routes={ROUTES} />

@@ -1,5 +1,7 @@
+import { DEFAULT_CARD_SIZE } from "@/types/card";
 import type { Dimension } from "@/types/dimension";
-import type { PageSize } from "@/types/page";
+import { PAGE_DIMENSIONS, PageSize } from "@/types/page";
+import { generateGrid } from "@/utils/grid";
 
 export interface Slot {
   x: number;
@@ -15,4 +17,31 @@ export interface Template {
   basePdfId: string | undefined;
 }
 
-export const DEFAULT_CARD_SIZE: Dimension = { width: 63, height: 88 };
+export const DEFAULT_TEMPLATES: Omit<Template, "id">[] = [
+  {
+    name: "A4 - MTG 3x3",
+    pageSize: PageSize.A4,
+    cardSize: DEFAULT_CARD_SIZE,
+    slots: generateGrid({
+      cols: 3,
+      rows: 3,
+      gap: 5,
+      cardSize: DEFAULT_CARD_SIZE,
+      pageSize: PAGE_DIMENSIONS[PageSize.A4],
+    }),
+    basePdfId: undefined,
+  },
+  {
+    name: "Letter - MTG 3x3",
+    pageSize: PageSize.Letter,
+    cardSize: DEFAULT_CARD_SIZE,
+    slots: generateGrid({
+      cols: 3,
+      rows: 3,
+      gap: 5,
+      cardSize: DEFAULT_CARD_SIZE,
+      pageSize: PAGE_DIMENSIONS[PageSize.Letter],
+    }),
+    basePdfId: undefined,
+  },
+];

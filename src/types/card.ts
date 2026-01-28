@@ -11,6 +11,8 @@ export const CARD_SIZE_PRESETS: Record<Exclude<CardSizePreset, CardSizePreset.Cu
   [CardSizePreset.YuGiOh]: { width: 59, height: 86 },
 };
 
+export const DEFAULT_CARD_SIZE: Dimension = CARD_SIZE_PRESETS[CardSizePreset.MTG];
+
 export function getCardSizePreset(dimension: Dimension): CardSizePreset {
   for (const [preset, size] of Object.entries(CARD_SIZE_PRESETS)) {
     if (size.width === dimension.width && size.height === dimension.height) {

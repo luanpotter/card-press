@@ -3,23 +3,31 @@ import { Button } from "@/app/components/Button";
 import { ConfirmModal } from "@/app/components/ConfirmModal";
 import { usePdfStore } from "@/app/store/pdfs";
 import { useTemplateStore } from "@/app/store/templates";
+import { DEFAULT_TEMPLATES } from "@/types/template";
 import { useState } from "react";
 
 export function Config() {
   const { pdfs, prunePdfs } = usePdfStore();
-  const { templates, deleteAllTemplates } = useTemplateStore();
-  const [pruneResult, setPruneResult] = useState<string | null>(null);
+  const { templates, deleteAllTemplates, addTemplate } = useTemplateStore();
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
   const handlePrunePdfs = () => {
     const usedIds = new Set(templates.map((t) => t.basePdfId).filter((id): id is string => id !== undefined));
-    const removed = prunePdfs(usedIds);
-    setPruneResult(removed > 0 ? `Removed ${String(removed)} unused PDF(s)` : "No unused PDFs to remove");
+    prunePdfs(usedIds);
   };
 
   const handleDeleteAllTemplates = () => {
     deleteAllTemplates();
     setShowDeleteAllModal(false);
+  };
+
+  const existingNames = new Set(templates.map((t) => t.name));
+  const missingDefaults = DEFAULT_TEMPLATES.filter((dt) => !existingNames.has(dt.name));
+
+  const handleLoadDefaults = () => {
+    for (const template of missingDefaults) {
+      addTemplate(template);
+    }
   };
 
   const usedCount = new Set(templates.map((t) => t.basePdfId).filter((id) => id !== undefined)).size;
@@ -36,13 +44,17 @@ export function Config() {
           <Button onClick={handlePrunePdfs} variant="danger" disabled={unusedCount === 0}>
             Prune Unused PDFs
           </Button>
-          {pruneResult && <span>{pruneResult}</span>}
         </Element>
         <Element>
           <span>Templates: {templates.length}</span>
-          <Button onClick={() => setShowDeleteAllModal(true)} variant="danger" disabled={templates.length === 0}>
-            Delete All Templates
-          </Button>
+          <Buttons>
+            <Button onClick={() => setShowDeleteAllModal(true)} variant="danger" disabled={templates.length === 0}>
+              Delete All Templates
+            </Button>
+            <Button onClick={handleLoadDefaults} disabled={missingDefaults.length === 0}>
+              Load Default Templates
+            </Button>
+          </Buttons>
         </Element>
       </Box>
 
@@ -63,4 +75,8 @@ const Element = ({ children }: { children: React.ReactNode }) => (
   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
     {children}
   </div>
+);
+
+const Buttons = ({ children }: { children: React.ReactNode }) => (
+  <div style={{ display: "flex", gap: "8px" }}>{children}</div>
 );

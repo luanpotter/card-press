@@ -4,10 +4,11 @@ import { Input } from "@/app/components/Input";
 import { Modal } from "@/app/components/Modal";
 import { Select } from "@/app/components/Select";
 import { usePdfStore } from "@/app/store/pdfs";
-import { CardSizePreset, CARD_SIZE_PRESETS, getCardSizePreset } from "@/types/card";
+import { CARD_SIZE_PRESETS, CardSizePreset, DEFAULT_CARD_SIZE, getCardSizePreset } from "@/types/card";
 import type { Dimension } from "@/types/dimension";
 import { PAGE_DIMENSIONS, PageSize } from "@/types/page";
-import { type Slot, type Template, DEFAULT_CARD_SIZE } from "@/types/template";
+import type { Slot, Template } from "@/types/template";
+import { generateGrid } from "@/utils/grid";
 import { useRef, useState } from "react";
 
 interface TemplateModalProps {
@@ -104,25 +105,13 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
     setErrors((prev) => ({ ...prev, gridCols: !colsValid, gridRows: !rowsValid, gridGap: !gapValid }));
     if (!colsValid || !rowsValid || !gapValid) return;
 
-    const cols = Number(gridCols);
-    const rows = Number(gridRows);
-    const gap = Number(gridGap);
-
-    const page = PAGE_DIMENSIONS[pageSize];
-    const totalWidth = cols * cardSize.width + (cols - 1) * gap;
-    const totalHeight = rows * cardSize.height + (rows - 1) * gap;
-    const startX = (page.width - totalWidth) / 2;
-    const startY = (page.height - totalHeight) / 2;
-
-    const newSlots: Slot[] = [];
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        newSlots.push({
-          x: startX + col * (cardSize.width + gap),
-          y: startY + row * (cardSize.height + gap),
-        });
-      }
-    }
+    const newSlots = generateGrid({
+      cols: Number(gridCols),
+      rows: Number(gridRows),
+      gap: Number(gridGap),
+      cardSize,
+      pageSize: PAGE_DIMENSIONS[pageSize],
+    });
     setSlots(newSlots);
   };
 

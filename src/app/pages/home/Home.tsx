@@ -47,20 +47,22 @@ export function Home() {
   const activeTemplate = activeSession ? templates.find((t) => t.id === activeSession.templateId) : undefined;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !activeSession) return;
+    const files = e.target.files;
+    if (!files || files.length === 0 || !activeSession) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const data = reader.result as string;
-      const imageId = addImage(file.name, data);
-      // Remove extension from filename for card name
-      const name = file.name.replace(/\.[^.]+$/, "");
-      addCard(activeSession.id, { name, count: 1, imageId });
-    };
-    reader.readAsDataURL(file);
+    for (const file of files) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const data = reader.result as string;
+        const imageId = addImage(file.name, data);
+        // Remove extension from filename for card name
+        const name = file.name.replace(/\.[^.]+$/, "");
+        addCard(activeSession.id, { name, count: 1, imageId });
+      };
+      reader.readAsDataURL(file);
+    }
 
-    // Reset input so same file can be selected again
+    // Reset input so same files can be selected again
     e.target.value = "";
   };
 
@@ -126,6 +128,7 @@ export function Home() {
             type="file"
             accept="image/png,image/jpeg,image/webp"
             onChange={handleFileSelect}
+            multiple
             hidden
           />
         </div>

@@ -13,6 +13,7 @@ import { useRef, useState } from "react";
 
 interface TemplateModalProps {
   template: Template | undefined;
+  existingNames: Set<string>;
   onSave: (template: Omit<Template, "id">) => void;
   onClose: () => void;
 }
@@ -30,7 +31,7 @@ const CARD_SIZE_OPTIONS = Object.values(CardSizePreset).map((preset) => {
   return { value: preset, label: `${preset} (${String(dim.width)}x${String(dim.height)}mm)` };
 });
 
-export function TemplateModal({ template, onSave, onClose }: TemplateModalProps) {
+export function TemplateModal({ template, existingNames, onSave, onClose }: TemplateModalProps) {
   const { pdfs, addPdf } = usePdfStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -51,7 +52,7 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
   const [gridGap, setGridGap] = useState("5");
 
   const [errors, setErrors] = useState<{
-    name?: boolean;
+    name?: string;
     cardWidth?: boolean;
     cardHeight?: boolean;
     slotX?: boolean;
@@ -68,12 +69,17 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
   const isValidNonNegative = (value: string) => isValidNumber(value) && Number(value) >= 0;
 
   const validate = () => {
-    const newErrors = {
-      name: name.trim() === "",
-      cardWidth: cardSize.width <= 0,
-      cardHeight: cardSize.height <= 0,
-      slots: slots.length === 0,
-    };
+    const trimmedName = name.trim();
+    const nameEmpty = trimmedName === "";
+    const nameDuplicate = existingNames.has(trimmedName) && trimmedName !== template?.name;
+
+    const newErrors: typeof errors = {};
+    if (nameEmpty) newErrors.name = "Name is required";
+    else if (nameDuplicate) newErrors.name = "A template with this name already exists";
+    if (cardSize.width <= 0) newErrors.cardWidth = true;
+    if (cardSize.height <= 0) newErrors.cardHeight = true;
+    if (slots.length === 0) newErrors.slots = true;
+
     setErrors(newErrors);
     return !newErrors.name && !newErrors.cardWidth && !newErrors.cardHeight && !newErrors.slots;
   };
@@ -147,13 +153,7 @@ export function TemplateModal({ template, onSave, onClose }: TemplateModalProps)
     <Modal title={template ? "Edit Template" : "New Template"} onClose={onClose} footer={footer}>
       <Box label="Basic Info">
         <div className="form-row">
-          <Input
-            label="Name"
-            value={name}
-            onChange={setName}
-            placeholder="Template name"
-            error={errors.name ? "required" : undefined}
-          />
+          <Input label="Name" value={name} onChange={setName} placeholder="Template name" error={errors.name} />
           <Select
             label="Page Size"
             value={pageSize}

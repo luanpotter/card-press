@@ -118,7 +118,14 @@ export function Templates() {
 
       {templates.length === 0 && <p className="muted">No templates yet.</p>}
 
-      {modalOpen && <TemplateModal template={editingTemplate} onSave={handleSave} onClose={handleClose} />}
+      {modalOpen && (
+        <TemplateModal
+          template={editingTemplate}
+          existingNames={new Set(templates.map((t) => t.name))}
+          onSave={handleSave}
+          onClose={handleClose}
+        />
+      )}
 
       {deletingTemplate && (
         <ConfirmModal

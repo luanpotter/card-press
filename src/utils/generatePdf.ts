@@ -118,39 +118,35 @@ export async function generatePdf({ template, cards, getImage, getPdf }: Generat
   const pageWidthPts = pageDimensions.width * MM_TO_POINTS;
   const pageHeightPts = pageDimensions.height * MM_TO_POINTS;
 
-  // Load base PDF or create a new document
-  let pdfDoc: PDFDocument;
+  // Load base PDF if available
+  let basePdfDoc: PDFDocument | null = null;
 
   if (template.basePdfId) {
     const basePdf = getPdf(template.basePdfId);
     if (basePdf) {
       const pdfBytes = dataUrlToBytes(basePdf.data);
-      pdfDoc = await PDFDocument.load(pdfBytes);
-    } else {
-      pdfDoc = await PDFDocument.create();
+      basePdfDoc = await PDFDocument.load(pdfBytes);
     }
-  } else {
-    pdfDoc = await PDFDocument.create();
   }
 
-  // Get existing pages from base PDF
-  const existingPages = pdfDoc.getPages();
+  // Create output document
+  const pdfDoc = await PDFDocument.create();
 
   // Process each page worth of cards
   for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
     // Get or create the page
     let page: PDFPage;
 
-    if (pageIndex < existingPages.length) {
-      // Use existing page from base PDF
-      const existingPage = existingPages[pageIndex];
-      if (!existingPage) {
-        page = pdfDoc.addPage([pageWidthPts, pageHeightPts]);
+    if (basePdfDoc) {
+      // Copy the first page from base PDF as template for each page
+      const [copiedPage] = await pdfDoc.copyPages(basePdfDoc, [0]);
+      if (copiedPage) {
+        page = pdfDoc.addPage(copiedPage);
       } else {
-        page = existingPage;
+        page = pdfDoc.addPage([pageWidthPts, pageHeightPts]);
       }
     } else {
-      // Add a new page
+      // Add a blank page
       page = pdfDoc.addPage([pageWidthPts, pageHeightPts]);
     }
 

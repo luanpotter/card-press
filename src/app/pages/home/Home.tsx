@@ -59,6 +59,8 @@ export function Home() {
   const [deletingCard, setDeletingCard] = useState<Card | undefined>();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewing, setPreviewing] = useState(false);
 
   useEffect(() => {
     // Use ref to prevent double initialization in StrictMode
@@ -145,6 +147,44 @@ export function Home() {
 
   const handleDragEnd = () => {
     setDragIndex(null);
+  };
+
+  // Cleanup preview URL on unmount or when URL changes
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  const handlePreview = () => {
+    if (!activeSession || !activeTemplate || previewing) return;
+
+    setPreviewing(true);
+    setTimeout(() => {
+      void (async () => {
+        try {
+          const pdfBytes = await generatePdf({
+            template: activeTemplate,
+            cards: activeSession.cards,
+            getImage,
+            getPdf,
+          });
+          // Revoke old URL before creating new one
+          if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+          }
+          const blob = new Blob([pdfBytes as BlobPart], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          setPreviewUrl(url);
+        } catch {
+          // TODO: show error to user
+        } finally {
+          setPreviewing(false);
+        }
+      })();
+    }, 0);
   };
 
   const handleGenerate = () => {
@@ -308,10 +348,20 @@ export function Home() {
 
       <Box label="PDF">
         <div className="right">
+          <Button onClick={handlePreview} disabled={cards.length === 0 || previewing}>
+            {previewing ? "Loading..." : "👁 Preview"}
+          </Button>
           <Button onClick={handleGenerate} disabled={cards.length === 0 || generating}>
-            {generating ? "Generating..." : "⬇ Generate PDF"}
+            {generating ? "Generating..." : "⬇ Download"}
           </Button>
         </div>
+        {previewUrl && (
+          <iframe
+            src={previewUrl}
+            title="PDF Preview"
+            style={{ width: "100%", height: "500px", border: "1px solid var(--color-border)", marginTop: "1rem" }}
+          />
+        )}
       </Box>
 
       {editingCard && (

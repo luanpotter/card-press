@@ -16,6 +16,7 @@ export function Config() {
   const { templates, deleteAllTemplates } = useTemplateStore();
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [showDeleteSessionsModal, setShowDeleteSessionsModal] = useState(false);
+  const [showFactoryResetModal, setShowFactoryResetModal] = useState(false);
 
   const handlePruneImages = () => {
     const usedIds = new Set(sessions.flatMap((s) => s.cards.map((c) => c.imageId)));
@@ -92,6 +93,14 @@ export function Config() {
         </Element>
       </Box>
 
+      <Box label="Danger Zone" error="Exercise caution">
+        <div className="right">
+          <Button onClick={() => setShowFactoryResetModal(true)} variant="danger">
+            Factory Reset
+          </Button>
+        </div>
+      </Box>
+
       {showDeleteAllModal && (
         <ConfirmModal
           title="Delete All Templates"
@@ -109,6 +118,22 @@ export function Config() {
           confirmLabel="Delete All"
           onConfirm={handleDeleteAllSessions}
           onClose={() => setShowDeleteSessionsModal(false)}
+        />
+      )}
+
+      {showFactoryResetModal && (
+        <ConfirmModal
+          title="Factory Reset"
+          message="Are you sure you want to perform a factory reset? This will delete all templates, sessions, images, and PDFs. This action cannot be undone."
+          confirmLabel="Factory Reset"
+          onConfirm={() => {
+            deleteAllSessions();
+            deleteAllTemplates();
+            pruneImages(new Set());
+            prunePdfs(new Set());
+            setShowFactoryResetModal(false);
+          }}
+          onClose={() => setShowFactoryResetModal(false)}
         />
       )}
     </main>

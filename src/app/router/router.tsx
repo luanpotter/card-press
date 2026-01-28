@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { RouterContext } from "@/app/router/routerContext";
 import { useRouter } from "@/app/router/useRouter";
+import { NotFound } from "@/app/pages/NotFound";
 
 function getHashPath(): string {
   const hash = window.location.hash.slice(1);
@@ -51,11 +52,5 @@ export function Routes({ routes }: RoutesProps) {
     return <Component />;
   }
 
-  const defaultRoute = routes[0];
-  if (defaultRoute) {
-    const Component = defaultRoute.component;
-    return <Component />;
-  }
-
-  return null;
+  return <NotFound />;
 }

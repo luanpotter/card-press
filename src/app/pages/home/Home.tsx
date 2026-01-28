@@ -9,6 +9,7 @@ import { Button } from "@/app/components/Button";
 import { ConfirmModal } from "@/app/components/ConfirmModal";
 import { Table, type Column } from "@/app/components/Table";
 import { CardModal } from "@/app/pages/home/CardModal";
+import { PasteCardModal } from "@/app/pages/home/PasteCardModal";
 import { generatePdf, downloadPdf } from "@/utils/generatePdf";
 import type { Card } from "@/types/session";
 
@@ -61,6 +62,7 @@ export function Home() {
   const [generating, setGenerating] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [pastedImage, setPastedImage] = useState<string | null>(null);
 
   useEffect(() => {
     // Use ref to prevent double initialization in StrictMode
@@ -85,8 +87,42 @@ export function Home() {
     }
   }, [sessions.length, templates, defaultTemplateId, addSession]);
 
+  // Handle paste event for clipboard images
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (!file) continue;
+
+          const reader = new FileReader();
+          reader.onload = () => {
+            const data = reader.result as string;
+            setPastedImage(data);
+          };
+          reader.readAsDataURL(file);
+          break;
+        }
+      }
+    };
+
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, []);
+
   const activeSession = getActiveSession();
   const activeTemplate = activeSession ? templates.find((t) => t.id === activeSession.templateId) : undefined;
+
+  const handleSavePastedCard = (name: string, count: number) => {
+    if (!activeSession || !pastedImage) return;
+    const imageId = addImage("pasted-image", pastedImage);
+    addCard(activeSession.id, { name, count, imageId });
+    setPastedImage(null);
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -376,6 +412,10 @@ export function Home() {
           onConfirm={handleConfirmDelete}
           onClose={() => setDeletingCard(undefined)}
         />
+      )}
+
+      {pastedImage && (
+        <PasteCardModal imageData={pastedImage} onSave={handleSavePastedCard} onClose={() => setPastedImage(null)} />
       )}
     </section>
   );

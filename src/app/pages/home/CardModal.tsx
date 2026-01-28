@@ -78,7 +78,7 @@ export function CardModal({ card, onSave, onClose }: CardModalProps) {
             <img
               src={image.data}
               alt={image.name}
-              style={{ width: "64px", height: "auto", borderRadius: "4px", border: "1px solid var(--border)" }}
+              style={{ maxWidth: "400px", maxHeight: "400px", border: "1px solid var(--border)" }}
             />
           )}
           <Button onClick={() => fileInputRef.current?.click()}>Change Image</Button>

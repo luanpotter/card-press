@@ -373,3 +373,63 @@ div.columns {
   align-items: center;
   margin-bottom: 16px;
 }
+
+/* Card Grid (Icons View) */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+}
+
+.card-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: grab;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+  text-align: center;
+}
+
+.card-icon:hover {
+  background: var(--input-bg);
+  border-color: var(--accent);
+}
+
+.card-icon img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  border-radius: 2px;
+  margin-bottom: 6px;
+}
+
+.card-icon-placeholder {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--input-bg);
+  border-radius: 2px;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 24px;
+}
+
+.card-icon-name {
+  font-size: 0.85em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.card-icon-count {
+  font-size: 0.75em;
+  color: var(--muted);
+}

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loadDefaultTemplates } from "@/app/store/loadDefaults";
 import { useSessionStore } from "@/app/store/sessions";
 import { useTemplateStore } from "@/app/store/templates";
@@ -8,17 +8,52 @@ import { Button } from "@/app/components/Button";
 import { ConfirmModal } from "@/app/components/ConfirmModal";
 import { CardModal } from "@/app/pages/home/CardModal";
 import type { Card } from "@/types/session";
-import { useState } from "react";
+
+type ViewMode = "list" | "images";
+
+function LazyCardImage({ imageId, alt }: { imageId: string; alt: string }) {
+  const { getImage } = useImageStore();
+  const [loaded, setLoaded] = useState(false);
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Defer to next tick so React can render skeleton first
+    requestAnimationFrame(() => {
+      if (cancelled) return;
+      const image = getImage(imageId);
+      if (image) {
+        setSrc(image.data);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [imageId, getImage]);
+
+  if (!src) {
+    return <div className="card-icon-placeholder" />;
+  }
+
+  return (
+    <>
+      {!loaded && <div className="card-icon-placeholder" />}
+      <img src={src} alt={alt} onLoad={() => setLoaded(true)} style={{ display: loaded ? "block" : "none" }} />
+    </>
+  );
+}
 
 export function Home() {
-  const { sessions, addSession, getActiveSession, addCard, updateCard, deleteCard } = useSessionStore();
+  const { sessions, addSession, getActiveSession, addCard, updateCard, deleteCard, moveCard } = useSessionStore();
   const { templates, defaultTemplateId } = useTemplateStore();
-  const { getImage, addImage } = useImageStore();
+  const { addImage } = useImageStore();
   const initRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [editingCard, setEditingCard] = useState<Card | undefined>();
   const [deletingCard, setDeletingCard] = useState<Card | undefined>();
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   useEffect(() => {
     // Use ref to prevent double initialization in StrictMode
@@ -86,6 +121,26 @@ export function Home() {
     setDeletingCard(undefined);
   };
 
+  const handleMoveCard = (fromIndex: number, toIndex: number) => {
+    if (!activeSession) return;
+    moveCard(activeSession.id, fromIndex, toIndex);
+  };
+
+  const handleDragStart = (index: number) => {
+    setDragIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (dragIndex === null || dragIndex === index) return;
+    handleMoveCard(dragIndex, index);
+    setDragIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+  };
+
   if (templates.length === 0) {
     return (
       <section>
@@ -120,9 +175,14 @@ export function Home() {
       <Box label="Cards">
         <div className="page-header" style={{ marginBottom: "12px" }}>
           <span>{cards.length} card(s)</span>
-          <Button onClick={() => fileInputRef.current?.click()} variant="accent">
-            + Add Card
-          </Button>
+          <div className="actions">
+            <Button onClick={() => setViewMode(viewMode === "list" ? "images" : "list")}>
+              {viewMode === "list" ? "⊞ Icons" : "☰ List"}
+            </Button>
+            <Button onClick={() => fileInputRef.current?.click()} variant="accent">
+              + Add Card
+            </Button>
+          </div>
           <input
             ref={fileInputRef}
             type="file"
@@ -133,53 +193,83 @@ export function Home() {
           />
         </div>
 
-        {cards.length > 0 && (
+        {cards.length > 0 && viewMode === "list" && (
           <table>
             <thead>
               <tr>
-                <th style={{ width: "50px" }}>Image</th>
                 <th>Name</th>
                 <th style={{ width: "80px" }}>Count</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {cards.map((card) => {
-                const image = getImage(card.imageId);
-                return (
-                  <tr key={card.id}>
-                    <td>
-                      {image && (
-                        <img
-                          src={image.data}
-                          alt={card.name}
-                          style={{ width: "40px", height: "auto", borderRadius: "2px" }}
-                        />
-                      )}
-                    </td>
-                    <td>{card.name}</td>
-                    <td>
-                      <input
-                        type="number"
-                        value={card.count}
-                        onChange={(e) => handleCountChange(card, e.target.value)}
-                        min={1}
-                        style={{ width: "60px" }}
-                      />
-                    </td>
-                    <td>
-                      <div className="actions">
-                        <Button onClick={() => setEditingCard(card)}>Edit</Button>
-                        <Button onClick={() => setDeletingCard(card)} variant="danger">
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {cards.map((card, index) => (
+                <tr
+                  key={card.id}
+                  draggable
+                  onDragStart={() => handleDragStart(index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragEnd={handleDragEnd}
+                  style={{ cursor: "grab", opacity: dragIndex === index ? 0.5 : 1 }}
+                >
+                  <td>{card.name}</td>
+                  <td>
+                    <input
+                      type="number"
+                      value={card.count}
+                      onChange={(e) => handleCountChange(card, e.target.value)}
+                      min={1}
+                      style={{ width: "60px" }}
+                    />
+                  </td>
+                  <td>
+                    <div className="actions">
+                      <Button onClick={() => handleMoveCard(index, index - 1)} disabled={index === 0} title="Move up">
+                        ↑
+                      </Button>
+                      <Button
+                        onClick={() => handleMoveCard(index, index + 1)}
+                        disabled={index === cards.length - 1}
+                        title="Move down"
+                      >
+                        ↓
+                      </Button>
+                      <Button onClick={() => setEditingCard(card)}>Edit</Button>
+                      <Button onClick={() => setDeletingCard(card)} variant="danger">
+                        Delete
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
+        )}
+
+        {cards.length > 0 && viewMode === "images" && (
+          <div className="card-grid">
+            {cards.map((card, index) => (
+              <div
+                key={card.id}
+                className="card-icon"
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragEnd={handleDragEnd}
+                onClick={() => setEditingCard(card)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setDeletingCard(card);
+                }}
+                style={{ opacity: dragIndex === index ? 0.5 : 1 }}
+                title={`${card.name} (×${String(card.count)}) • Click to edit, right-click to delete`}
+              >
+                <LazyCardImage imageId={card.imageId} alt={card.name} />
+                <span className="card-icon-name">{card.name}</span>
+                <span className="card-icon-count">×{card.count}</span>
+              </div>
+            ))}
+          </div>
         )}
 
         {cards.length === 0 && <p className="muted">No cards yet. Add a card to get started.</p>}

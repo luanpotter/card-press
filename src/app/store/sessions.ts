@@ -15,6 +15,7 @@ interface SessionState {
   addCard: (sessionId: string, card: Omit<Card, "id">) => string;
   updateCard: (sessionId: string, cardId: string, card: Partial<Omit<Card, "id">>) => void;
   deleteCard: (sessionId: string, cardId: string) => void;
+  moveCard: (sessionId: string, fromIndex: number, toIndex: number) => void;
 }
 
 export const useSessionStore = create<SessionState>()(
@@ -75,6 +76,18 @@ export const useSessionStore = create<SessionState>()(
           sessions: state.sessions.map((s) =>
             s.id === sessionId ? { ...s, cards: s.cards.filter((c) => c.id !== cardId) } : s
           ),
+        })),
+      moveCard: (sessionId, fromIndex, toIndex) =>
+        set((state) => ({
+          sessions: state.sessions.map((s) => {
+            if (s.id !== sessionId) return s;
+            const cards = [...s.cards];
+            const moved = cards[fromIndex];
+            if (!moved) return s;
+            cards.splice(fromIndex, 1);
+            cards.splice(toIndex, 0, moved);
+            return { ...s, cards };
+          }),
         })),
     }),
     { name: "card-press-sessions" }

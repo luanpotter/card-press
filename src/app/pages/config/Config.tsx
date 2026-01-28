@@ -1,6 +1,7 @@
 import { Box } from "@/app/components/Box";
 import { Button } from "@/app/components/Button";
 import { ConfirmModal } from "@/app/components/ConfirmModal";
+import { useImageStore } from "@/app/store/images";
 import { loadDefaultTemplates } from "@/app/store/loadDefaults";
 import { usePdfStore } from "@/app/store/pdfs";
 import { useSessionStore } from "@/app/store/sessions";
@@ -9,11 +10,17 @@ import { DEFAULT_TEMPLATES } from "@/types/template";
 import { useState } from "react";
 
 export function Config() {
+  const { images, pruneImages } = useImageStore();
   const { pdfs, prunePdfs } = usePdfStore();
   const { sessions, deleteAllSessions } = useSessionStore();
   const { templates, deleteAllTemplates } = useTemplateStore();
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [showDeleteSessionsModal, setShowDeleteSessionsModal] = useState(false);
+
+  const handlePruneImages = () => {
+    const usedIds = new Set(sessions.flatMap((s) => s.cards.map((c) => c.imageId)));
+    pruneImages(usedIds);
+  };
 
   const handlePrunePdfs = () => {
     const usedIds = new Set(templates.map((t) => t.basePdfId).filter((id): id is string => id !== undefined));
@@ -38,17 +45,20 @@ export function Config() {
     loadDefaultTemplates();
   };
 
-  const usedCount = new Set(templates.map((t) => t.basePdfId).filter((id) => id !== undefined)).size;
-  const unusedCount = pdfs.length - usedCount;
+  const usedPdfCount = new Set(templates.map((t) => t.basePdfId).filter((id) => id !== undefined)).size;
+  const unusedPdfCount = pdfs.length - usedPdfCount;
+
+  const usedImageCount = new Set(sessions.flatMap((s) => s.cards.map((c) => c.imageId))).size;
+  const unusedImageCount = images.length - usedImageCount;
 
   return (
     <main>
       <Box label="Templates">
         <Element>
           <span>
-            PDFs stored: {pdfs.length} ({usedCount} used, {unusedCount} unused)
+            PDFs stored: {pdfs.length} ({usedPdfCount} used, {unusedPdfCount} unused)
           </span>
-          <Button onClick={handlePrunePdfs} variant="danger" disabled={unusedCount === 0}>
+          <Button onClick={handlePrunePdfs} variant="danger" disabled={unusedPdfCount === 0}>
             Prune Unused PDFs
           </Button>
         </Element>
@@ -66,6 +76,14 @@ export function Config() {
       </Box>
 
       <Box label="Sessions">
+        <Element>
+          <span>
+            Images stored: {images.length} ({usedImageCount} used, {unusedImageCount} unused)
+          </span>
+          <Button onClick={handlePruneImages} variant="danger" disabled={unusedImageCount === 0}>
+            Prune Unused Images
+          </Button>
+        </Element>
         <Element>
           <span>Sessions: {sessions.length}</span>
           <Button onClick={() => setShowDeleteSessionsModal(true)} variant="danger" disabled={sessions.length === 0}>

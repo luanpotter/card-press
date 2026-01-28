@@ -1,0 +1,204 @@
+import { PDFDocument, type PDFPage } from "pdf-lib";
+import type { Template, Slot } from "@/types/template";
+import type { Card } from "@/types/session";
+import { PAGE_DIMENSIONS } from "@/types/page";
+
+// Convert mm to PDF points (1 inch = 72 points, 1 inch = 25.4mm)
+const MM_TO_POINTS = 72 / 25.4;
+
+interface StoredImage {
+  name: string;
+  data: string; // data URL
+}
+
+interface StoredPdf {
+  name: string;
+  data: string; // data URL
+}
+
+interface GeneratePdfOptions {
+  template: Template;
+  cards: Card[];
+  getImage: (id: string) => StoredImage | undefined;
+  getPdf: (id: string) => StoredPdf | undefined;
+}
+
+/**
+ * Expand cards by their count into a flat array of image IDs
+ * e.g., [{imageId: "a", count: 2}, {imageId: "b", count: 1}] => ["a", "a", "b"]
+ */
+function expandCards(cards: Card[]): string[] {
+  const expanded: string[] = [];
+  for (const card of cards) {
+    for (let i = 0; i < card.count; i++) {
+      expanded.push(card.imageId);
+    }
+  }
+  return expanded;
+}
+
+/**
+ * Convert data URL to Uint8Array
+ */
+function dataUrlToBytes(dataUrl: string): Uint8Array {
+  const base64 = dataUrl.split(",")[1];
+  if (!base64) throw new Error("Invalid data URL");
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
+ * Detect image type from data URL
+ */
+function getImageType(dataUrl: string): "png" | "jpeg" | null {
+  if (dataUrl.startsWith("data:image/png")) return "png";
+  if (dataUrl.startsWith("data:image/jpeg") || dataUrl.startsWith("data:image/jpg")) return "jpeg";
+  return null;
+}
+
+/**
+ * Draw an image on a PDF page at the specified slot position
+ */
+async function drawCardOnPage(
+  pdfDoc: PDFDocument,
+  page: PDFPage,
+  slot: Slot,
+  cardWidth: number,
+  cardHeight: number,
+  pageHeight: number,
+  imageData: string
+): Promise<void> {
+  const imageType = getImageType(imageData);
+  if (!imageType) {
+    // Unsupported image type, skip silently
+    return;
+  }
+
+  const imageBytes = dataUrlToBytes(imageData);
+  const image = imageType === "png" ? await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
+
+  // Convert mm to points
+  const x = slot.x * MM_TO_POINTS;
+  const width = cardWidth * MM_TO_POINTS;
+  const height = cardHeight * MM_TO_POINTS;
+
+  // PDF coordinate system has origin at bottom-left, so flip Y
+  // slot.y is from top in mm, convert to bottom-left origin
+  const y = (pageHeight - slot.y - cardHeight) * MM_TO_POINTS;
+
+  page.drawImage(image, {
+    x,
+    y,
+    width,
+    height,
+  });
+}
+
+/**
+ * Generate a PDF with cards placed according to the template
+ */
+export async function generatePdf({ template, cards, getImage, getPdf }: GeneratePdfOptions): Promise<Uint8Array> {
+  const expandedImageIds = expandCards(cards);
+
+  if (expandedImageIds.length === 0) {
+    throw new Error("No cards to generate");
+  }
+
+  const slotsPerPage = template.slots.length;
+  if (slotsPerPage === 0) {
+    throw new Error("Template has no slots defined");
+  }
+
+  const totalPages = Math.ceil(expandedImageIds.length / slotsPerPage);
+  const pageDimensions = PAGE_DIMENSIONS[template.pageSize];
+  const pageWidthPts = pageDimensions.width * MM_TO_POINTS;
+  const pageHeightPts = pageDimensions.height * MM_TO_POINTS;
+
+  // Load base PDF or create a new document
+  let pdfDoc: PDFDocument;
+
+  if (template.basePdfId) {
+    const basePdf = getPdf(template.basePdfId);
+    if (basePdf) {
+      const pdfBytes = dataUrlToBytes(basePdf.data);
+      pdfDoc = await PDFDocument.load(pdfBytes);
+    } else {
+      pdfDoc = await PDFDocument.create();
+    }
+  } else {
+    pdfDoc = await PDFDocument.create();
+  }
+
+  // Get existing pages from base PDF
+  const existingPages = pdfDoc.getPages();
+
+  // Process each page worth of cards
+  for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+    // Get or create the page
+    let page: PDFPage;
+
+    if (pageIndex < existingPages.length) {
+      // Use existing page from base PDF
+      const existingPage = existingPages[pageIndex];
+      if (!existingPage) {
+        page = pdfDoc.addPage([pageWidthPts, pageHeightPts]);
+      } else {
+        page = existingPage;
+      }
+    } else {
+      // Add a new page
+      page = pdfDoc.addPage([pageWidthPts, pageHeightPts]);
+    }
+
+    // Get cards for this page
+    const startIdx = pageIndex * slotsPerPage;
+    const pageImageIds = expandedImageIds.slice(startIdx, startIdx + slotsPerPage);
+
+    // Place each card in its slot
+    for (let slotIndex = 0; slotIndex < pageImageIds.length; slotIndex++) {
+      const imageId = pageImageIds[slotIndex];
+      const slot = template.slots[slotIndex];
+
+      if (!imageId || !slot) continue;
+
+      const image = getImage(imageId);
+      if (!image) {
+        // Image not found, skip this slot
+        continue;
+      }
+
+      await drawCardOnPage(
+        pdfDoc,
+        page,
+        slot,
+        template.cardSize.width,
+        template.cardSize.height,
+        pageDimensions.height,
+        image.data
+      );
+    }
+  }
+
+  return await pdfDoc.save();
+}
+
+/**
+ * Download a PDF as a file
+ */
+export function downloadPdf(pdfBytes: Uint8Array, filename: string): void {
+  const blob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+}

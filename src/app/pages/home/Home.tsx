@@ -3,11 +3,13 @@ import { loadDefaultTemplates } from "@/app/store/loadDefaults";
 import { useSessionStore } from "@/app/store/sessions";
 import { useTemplateStore } from "@/app/store/templates";
 import { useImageStore } from "@/app/store/images";
+import { usePdfStore } from "@/app/store/pdfs";
 import { Box } from "@/app/components/Box";
 import { Button } from "@/app/components/Button";
 import { ConfirmModal } from "@/app/components/ConfirmModal";
 import { Table, type Column } from "@/app/components/Table";
 import { CardModal } from "@/app/pages/home/CardModal";
+import { generatePdf, downloadPdf } from "@/utils/generatePdf";
 import type { Card } from "@/types/session";
 
 type ViewMode = "list" | "images";
@@ -47,7 +49,8 @@ function LazyCardImage({ imageId, alt }: { imageId: string; alt: string }) {
 export function Home() {
   const { sessions, addSession, getActiveSession, addCard, updateCard, deleteCard, moveCard } = useSessionStore();
   const { templates, defaultTemplateId } = useTemplateStore();
-  const { addImage } = useImageStore();
+  const { addImage, getImage } = useImageStore();
+  const { getPdf } = usePdfStore();
   const initRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,6 +58,7 @@ export function Home() {
   const [editingCard, setEditingCard] = useState<Card | undefined>();
   const [deletingCard, setDeletingCard] = useState<Card | undefined>();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     // Use ref to prevent double initialization in StrictMode
@@ -141,6 +145,26 @@ export function Home() {
 
   const handleDragEnd = () => {
     setDragIndex(null);
+  };
+
+  const handleGenerate = async () => {
+    if (!activeSession || !activeTemplate || generating) return;
+
+    setGenerating(true);
+    try {
+      const pdfBytes = await generatePdf({
+        template: activeTemplate,
+        cards: activeSession.cards,
+        getImage,
+        getPdf,
+      });
+      const filename = `${activeSession.name}.pdf`;
+      downloadPdf(pdfBytes, filename);
+    } catch {
+      // TODO: show error to user
+    } finally {
+      setGenerating(false);
+    }
   };
 
   if (templates.length === 0) {
@@ -233,6 +257,9 @@ export function Home() {
           </Button>
           <Button onClick={() => fileInputRef.current?.click()} variant="accent">
             + Add Card
+          </Button>
+          <Button onClick={handleGenerate} disabled={cards.length === 0 || generating}>
+            {generating ? "Generating..." : "⬇ Generate PDF"}
           </Button>
           <input
             ref={fileInputRef}

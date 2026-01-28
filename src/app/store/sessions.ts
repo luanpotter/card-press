@@ -8,6 +8,7 @@ interface SessionState {
   addSession: (session: Omit<Session, "id">) => string;
   updateSession: (id: string, session: Omit<Session, "id">) => void;
   deleteSession: (id: string) => void;
+  deleteAllSessions: () => void;
   setActiveSession: (id: string) => void;
   getActiveSession: () => Session | undefined;
 }
@@ -38,6 +39,7 @@ export const useSessionStore = create<SessionState>()(
           const newActive = state.activeSessionId === id ? (newSessions[0]?.id ?? null) : state.activeSessionId;
           return { sessions: newSessions, activeSessionId: newActive };
         }),
+      deleteAllSessions: () => set({ sessions: [], activeSessionId: null }),
       setActiveSession: (id) => {
         const { sessions } = get();
         if (sessions.some((s) => s.id === id)) {

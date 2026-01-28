@@ -3,6 +3,7 @@ import { useSessionStore } from "@/app/store/sessions";
 import { useTemplateStore } from "@/app/store/templates";
 import type { Session } from "@/types/session";
 import { Button } from "@/app/components/Button";
+import { ConfirmModal } from "@/app/components/ConfirmModal";
 import { SessionModal } from "@/app/pages/sessions/SessionModal";
 
 export function Sessions() {
@@ -10,6 +11,7 @@ export function Sessions() {
   const { templates } = useTemplateStore();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<Session | undefined>();
+  const [deletingSession, setDeletingSession] = useState<Session | undefined>();
 
   const getTemplateName = (templateId: string) => {
     return templates.find((t) => t.id === templateId)?.name ?? "—";
@@ -40,6 +42,16 @@ export function Sessions() {
   const handleClose = () => {
     setModalOpen(false);
     setEditingSession(undefined);
+  };
+
+  const handleDeleteClick = (session: Session) => {
+    setDeletingSession(session);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deletingSession) return;
+    deleteSession(deletingSession.id);
+    setDeletingSession(undefined);
   };
 
   return (
@@ -73,7 +85,7 @@ export function Sessions() {
                 <td>
                   <div className="actions">
                     <Button onClick={() => handleEdit(session)}>Edit</Button>
-                    <Button onClick={() => deleteSession(session.id)} variant="danger">
+                    <Button onClick={() => handleDeleteClick(session)} variant="danger">
                       Delete
                     </Button>
                     {session.id !== activeSessionId && (
@@ -95,6 +107,16 @@ export function Sessions() {
           existingNames={existingNames}
           onSave={handleSave}
           onClose={handleClose}
+        />
+      )}
+
+      {deletingSession && (
+        <ConfirmModal
+          title="Delete Session"
+          message={`Are you sure you want to delete "${deletingSession.name}"?`}
+          confirmLabel="Delete"
+          onConfirm={handleConfirmDelete}
+          onClose={() => setDeletingSession(undefined)}
         />
       )}
     </section>

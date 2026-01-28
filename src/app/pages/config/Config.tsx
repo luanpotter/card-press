@@ -2,12 +2,14 @@ import { Box } from "@/app/components/Box";
 import { Button } from "@/app/components/Button";
 import { ConfirmModal } from "@/app/components/ConfirmModal";
 import { usePdfStore } from "@/app/store/pdfs";
+import { useSessionStore } from "@/app/store/sessions";
 import { useTemplateStore } from "@/app/store/templates";
 import { DEFAULT_TEMPLATES } from "@/types/template";
 import { useState } from "react";
 
 export function Config() {
   const { pdfs, prunePdfs, addPdf } = usePdfStore();
+  const { sessions, deleteAllSessions } = useSessionStore();
   const { templates, deleteAllTemplates, addTemplate, defaultTemplateId, setDefaultTemplate } = useTemplateStore();
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
@@ -17,6 +19,7 @@ export function Config() {
   };
 
   const handleDeleteAllTemplates = () => {
+    deleteAllSessions();
     deleteAllTemplates();
     setShowDeleteAllModal(false);
   };
@@ -75,7 +78,7 @@ export function Config() {
       {showDeleteAllModal && (
         <ConfirmModal
           title="Delete All Templates"
-          message={`Are you sure you want to delete all ${String(templates.length)} template(s)? This cannot be undone.`}
+          message={`Are you sure you want to delete all ${String(templates.length)} template(s) and ${String(sessions.length)} session(s)? This cannot be undone.`}
           confirmLabel="Delete All"
           onConfirm={handleDeleteAllTemplates}
           onClose={() => setShowDeleteAllModal(false)}

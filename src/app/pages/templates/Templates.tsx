@@ -1,16 +1,20 @@
 import { useState } from "react";
 import { useTemplateStore } from "@/app/store/templates";
+import { useSessionStore } from "@/app/store/sessions";
 import { usePdfStore } from "@/app/store/pdfs";
 import type { Template } from "@/types/template";
 import { Button } from "@/app/components/Button";
+import { ConfirmModal } from "@/app/components/ConfirmModal";
 import { TemplateModal } from "@/app/pages/templates/TemplateModal";
 
 export function Templates() {
   const { templates, addTemplate, updateTemplate, deleteTemplate, defaultTemplateId, setDefaultTemplate } =
     useTemplateStore();
+  const { sessions, deleteSession } = useSessionStore();
   const { getPdf } = usePdfStore();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | undefined>();
+  const [deletingTemplate, setDeletingTemplate] = useState<Template | undefined>();
 
   const handleNew = () => {
     setEditingTemplate(undefined);
@@ -35,6 +39,30 @@ export function Templates() {
   const handleClose = () => {
     setModalOpen(false);
     setEditingTemplate(undefined);
+  };
+
+  const handleDeleteClick = (template: Template) => {
+    setDeletingTemplate(template);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deletingTemplate) return;
+    // Delete all sessions using this template
+    const affectedSessions = sessions.filter((s) => s.templateId === deletingTemplate.id);
+    for (const session of affectedSessions) {
+      deleteSession(session.id);
+    }
+    deleteTemplate(deletingTemplate.id);
+    setDeletingTemplate(undefined);
+  };
+
+  const getDeleteMessage = (template: Template) => {
+    const affectedSessions = sessions.filter((s) => s.templateId === template.id);
+    if (affectedSessions.length === 0) {
+      return `Are you sure you want to delete "${template.name}"?`;
+    }
+    const sessionWord = affectedSessions.length === 1 ? "session" : "sessions";
+    return `Are you sure you want to delete "${template.name}"? This will also delete ${String(affectedSessions.length)} ${sessionWord} using this template.`;
   };
 
   return (
@@ -74,7 +102,7 @@ export function Templates() {
                 <td>
                   <div className="actions">
                     <Button onClick={() => handleEdit(template)}>Edit</Button>
-                    <Button onClick={() => deleteTemplate(template.id)} variant="danger">
+                    <Button onClick={() => handleDeleteClick(template)} variant="danger">
                       Delete
                     </Button>
                     {template.id !== defaultTemplateId && (
@@ -91,6 +119,16 @@ export function Templates() {
       {templates.length === 0 && <p className="muted">No templates yet.</p>}
 
       {modalOpen && <TemplateModal template={editingTemplate} onSave={handleSave} onClose={handleClose} />}
+
+      {deletingTemplate && (
+        <ConfirmModal
+          title="Delete Template"
+          message={getDeleteMessage(deletingTemplate)}
+          confirmLabel="Delete"
+          onConfirm={handleConfirmDelete}
+          onClose={() => setDeletingTemplate(undefined)}
+        />
+      )}
     </section>
   );
 }

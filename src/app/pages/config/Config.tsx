@@ -13,6 +13,7 @@ export function Config() {
   const { sessions, deleteAllSessions } = useSessionStore();
   const { templates, deleteAllTemplates } = useTemplateStore();
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [showDeleteSessionsModal, setShowDeleteSessionsModal] = useState(false);
 
   const handlePrunePdfs = () => {
     const usedIds = new Set(templates.map((t) => t.basePdfId).filter((id): id is string => id !== undefined));
@@ -23,6 +24,11 @@ export function Config() {
     deleteAllSessions();
     deleteAllTemplates();
     setShowDeleteAllModal(false);
+  };
+
+  const handleDeleteAllSessions = () => {
+    deleteAllSessions();
+    setShowDeleteSessionsModal(false);
   };
 
   const existingNames = new Set(templates.map((t) => t.name));
@@ -62,7 +68,7 @@ export function Config() {
       <Box label="Sessions">
         <Element>
           <span>Sessions: {sessions.length}</span>
-          <Button onClick={deleteAllSessions} variant="danger" disabled={sessions.length === 0}>
+          <Button onClick={() => setShowDeleteSessionsModal(true)} variant="danger" disabled={sessions.length === 0}>
             Delete All Sessions
           </Button>
         </Element>
@@ -75,6 +81,16 @@ export function Config() {
           confirmLabel="Delete All"
           onConfirm={handleDeleteAllTemplates}
           onClose={() => setShowDeleteAllModal(false)}
+        />
+      )}
+
+      {showDeleteSessionsModal && (
+        <ConfirmModal
+          title="Delete All Sessions"
+          message={`Are you sure you want to delete all ${String(sessions.length)} session(s)? This cannot be undone.`}
+          confirmLabel="Delete All"
+          onConfirm={handleDeleteAllSessions}
+          onClose={() => setShowDeleteSessionsModal(false)}
         />
       )}
     </main>

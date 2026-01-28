@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { loadDefaultTemplates } from "@/app/store/loadDefaults";
 import { useSessionStore } from "@/app/store/sessions";
 import { useTemplateStore } from "@/app/store/templates";
+import { Box } from "@/app/components/Box";
 
 export function Home() {
   const { sessions, addSession, getActiveSession } = useSessionStore();
@@ -54,10 +55,14 @@ export function Home() {
 
   return (
     <section>
-      <h1>{activeSession.name}</h1>
-      <p className="muted">
-        Template: {activeTemplate?.name ?? "Unknown"} • {activeTemplate?.slots.length ?? 0} slots
-      </p>
+      <Box label="Session">
+        <div className="columns">
+          <strong>{activeSession.name}</strong>
+          <p className="muted">
+            {activeTemplate?.name ?? "Unknown"} • {activeTemplate?.slots.length ?? 0} slots
+          </p>
+        </div>
+      </Box>
     </section>
   );
 }

@@ -195,18 +195,6 @@ th {
   color: var(--accent);
 }
 
-/* Page header */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.page-header h1 {
-  margin: 0;
-}
-
 /* Modal */
 .modal-overlay {
   position: fixed;
@@ -371,4 +359,17 @@ select.error {
   margin-left: 8px;
   border-radius: 3px;
   vertical-align: middle;
+}
+
+section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+div.columns {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
 }

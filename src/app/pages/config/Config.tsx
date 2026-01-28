@@ -37,7 +37,6 @@ export function Config() {
 
   return (
     <main>
-      <h1>Config</h1>
       <Box label="Templates">
         <Element>
           <span>
@@ -73,11 +72,7 @@ export function Config() {
   );
 }
 
-const Element = ({ children }: { children: React.ReactNode }) => (
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-    {children}
-  </div>
-);
+const Element = ({ children }: { children: React.ReactNode }) => <div className="columns">{children}</div>;
 
 const Buttons = ({ children }: { children: React.ReactNode }) => (
   <div style={{ display: "flex", gap: "8px" }}>{children}</div>

@@ -67,12 +67,9 @@ export function Templates() {
 
   return (
     <section>
-      <div className="page-header">
-        <h1>Templates</h1>
-        <Button onClick={handleNew} variant="accent">
-          + New Template
-        </Button>
-      </div>
+      <Button onClick={handleNew} variant="accent">
+        + New Template
+      </Button>
 
       {templates.length > 0 && (
         <table>

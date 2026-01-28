@@ -22,6 +22,8 @@ export interface Template {
 export interface DefaultTemplate extends Omit<Template, "id" | "basePdfId"> {
   /** Bundled PDF data URL to be added to PDF store when loading defaults */
   bundledPdf?: { name: string; dataUrl: string };
+  /** Whether this should be set as the default template when loaded */
+  isDefault?: boolean;
 }
 
 export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
@@ -58,6 +60,7 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       name: "Cricut Template",
       dataUrl: US_LETTER_CRICUT_TEMPLATE_PDF,
     },
+    isDefault: true,
   },
 ];
 

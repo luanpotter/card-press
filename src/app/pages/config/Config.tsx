@@ -8,7 +8,7 @@ import { useState } from "react";
 
 export function Config() {
   const { pdfs, prunePdfs, addPdf } = usePdfStore();
-  const { templates, deleteAllTemplates, addTemplate } = useTemplateStore();
+  const { templates, deleteAllTemplates, addTemplate, defaultTemplateId, setDefaultTemplate } = useTemplateStore();
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
   const handlePrunePdfs = () => {
@@ -32,10 +32,15 @@ export function Config() {
         basePdfId = addPdf(defaultTemplate.bundledPdf.name, defaultTemplate.bundledPdf.dataUrl);
       }
 
-      // Create template without the bundledPdf field
-      const { bundledPdf: _unused, ...templateData } = defaultTemplate;
+      // Create template without the bundledPdf and isDefault fields
+      const { bundledPdf: _unused, isDefault, ...templateData } = defaultTemplate;
       void _unused; // Intentionally unused - we strip this field from the template
-      addTemplate({ ...templateData, basePdfId });
+      const id = addTemplate({ ...templateData, basePdfId });
+
+      // Set as default if marked and no default exists yet
+      if (isDefault && !defaultTemplateId) {
+        setDefaultTemplate(id);
+      }
     }
   };
 

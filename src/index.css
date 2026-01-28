@@ -361,3 +361,14 @@ select.error {
 .danger {
   color: var(--danger);
 }
+
+.badge {
+  display: inline-block;
+  background: var(--accent);
+  color: #000;
+  font-size: 0.7em;
+  padding: 2px 6px;
+  margin-left: 8px;
+  border-radius: 3px;
+  vertical-align: middle;
+}

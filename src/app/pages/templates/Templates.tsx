@@ -6,7 +6,8 @@ import { Button } from "@/app/components/Button";
 import { TemplateModal } from "@/app/pages/templates/TemplateModal";
 
 export function Templates() {
-  const { templates, addTemplate, updateTemplate, deleteTemplate } = useTemplateStore();
+  const { templates, addTemplate, updateTemplate, deleteTemplate, defaultTemplateId, setDefaultTemplate } =
+    useTemplateStore();
   const { getPdf } = usePdfStore();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | undefined>();
@@ -60,7 +61,10 @@ export function Templates() {
           <tbody>
             {templates.map((template) => (
               <tr key={template.id}>
-                <td>{template.name}</td>
+                <td>
+                  {template.name}
+                  {template.id === defaultTemplateId && <span className="badge">Default</span>}
+                </td>
                 <td>{template.pageSize}</td>
                 <td>
                   {template.cardSize.width}×{template.cardSize.height}
@@ -73,6 +77,9 @@ export function Templates() {
                     <Button onClick={() => deleteTemplate(template.id)} variant="danger">
                       Delete
                     </Button>
+                    {template.id !== defaultTemplateId && (
+                      <Button onClick={() => setDefaultTemplate(template.id)}>Set Default</Button>
+                    )}
                   </div>
                 </td>
               </tr>

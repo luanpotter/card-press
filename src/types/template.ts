@@ -65,9 +65,7 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
 ];
 
 function generateCricutSlots() {
-  // Offset from PDF content area (36pt x, 42pt y from top)
-  // 36 points = 12.7mm exactly, 42 points = 14.8166...mm
-  const offset = { x: 12.7, y: (42 * 25.4) / 72 };
+  const offset = { x: 13.2, y: 46.8 };
   const gap = { x: 63.11, dy: 88.11 };
   return [
     { x: 0, y: 0 },

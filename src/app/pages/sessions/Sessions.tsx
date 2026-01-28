@@ -29,7 +29,7 @@ export function Sessions() {
     setModalOpen(true);
   };
 
-  const handleSave = (data: Omit<Session, "id">) => {
+  const handleSave = (data: Omit<Session, "id" | "cards">) => {
     if (editingSession) {
       updateSession(editingSession.id, data);
     } else {

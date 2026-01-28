@@ -9,7 +9,7 @@ import { useState } from "react";
 interface SessionModalProps {
   session: Session | undefined;
   existingNames: Set<string>;
-  onSave: (session: Omit<Session, "id">) => void;
+  onSave: (session: Omit<Session, "id" | "cards">) => void;
   onClose: () => void;
 }
 

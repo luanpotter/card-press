@@ -197,6 +197,7 @@ export function Home() {
           <table>
             <thead>
               <tr>
+                <th style={{ width: "32px" }}></th>
                 <th>Name</th>
                 <th style={{ width: "80px" }}>Count</th>
                 <th>Actions</th>
@@ -206,12 +207,18 @@ export function Home() {
               {cards.map((card, index) => (
                 <tr
                   key={card.id}
-                  draggable
-                  onDragStart={() => handleDragStart(index)}
                   onDragOver={(e) => handleDragOver(e, index)}
-                  onDragEnd={handleDragEnd}
-                  style={{ cursor: "grab", opacity: dragIndex === index ? 0.5 : 1 }}
+                  style={{ opacity: dragIndex === index ? 0.5 : 1 }}
                 >
+                  <td
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragEnd={handleDragEnd}
+                    className="drag-handle"
+                    title="Drag to reorder"
+                  >
+                    ⠿
+                  </td>
                   <td>{card.name}</td>
                   <td>
                     <input

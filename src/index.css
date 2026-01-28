@@ -195,6 +195,21 @@ th {
   color: var(--accent);
 }
 
+td.drag-handle {
+  cursor: grab;
+  color: var(--muted);
+  text-align: center;
+  user-select: none;
+}
+
+td.drag-handle:hover {
+  color: var(--accent);
+}
+
+td.drag-handle:active {
+  cursor: grabbing;
+}
+
 /* Modal */
 .modal-overlay {
   position: fixed;

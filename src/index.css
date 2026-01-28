@@ -389,7 +389,7 @@ select.error {
 section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
 }
 
 div.columns {
@@ -399,11 +399,19 @@ div.columns {
   margin-bottom: 16px;
 }
 
+div.right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 /* Card Grid (Icons View) */
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 12px;
+  margin-top: 8px;
 }
 
 .card-icon {

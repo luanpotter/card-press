@@ -208,6 +208,10 @@ export function Home() {
     },
   ];
 
+  const pageCount = activeTemplate
+    ? Math.ceil(cards.reduce((sum, card) => sum + card.count, 0) / activeTemplate.slots.length)
+    : 0;
+
   return (
     <section>
       <Box label="Session">
@@ -220,16 +224,16 @@ export function Home() {
       </Box>
 
       <Box label="Cards">
-        <div className="page-header" style={{ marginBottom: "12px" }}>
-          <span>{cards.length} card(s)</span>
-          <div className="actions">
-            <Button onClick={() => setViewMode(viewMode === "list" ? "images" : "list")}>
-              {viewMode === "list" ? "⊞ Icons" : "☰ List"}
-            </Button>
-            <Button onClick={() => fileInputRef.current?.click()} variant="accent">
-              + Add Card
-            </Button>
-          </div>
+        <div className="right">
+          <span>
+            {cards.length} cards / {pageCount} pages
+          </span>
+          <Button onClick={() => setViewMode(viewMode === "list" ? "images" : "list")}>
+            {viewMode === "list" ? "⊞ Icons" : "☰ List"}
+          </Button>
+          <Button onClick={() => fileInputRef.current?.click()} variant="accent">
+            + Add Card
+          </Button>
           <input
             ref={fileInputRef}
             type="file"

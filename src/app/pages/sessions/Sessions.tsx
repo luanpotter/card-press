@@ -90,9 +90,12 @@ export function Sessions() {
 
   return (
     <section>
-      <Button onClick={handleNew} variant="accent" disabled={templates.length === 0}>
-        + New Session
-      </Button>
+      <div className="right">
+        {sessions.length} sessions
+        <Button onClick={handleNew} variant="accent" disabled={templates.length === 0}>
+          + New Session
+        </Button>
+      </div>
 
       {templates.length === 0 && <p className="muted">Create a template first before creating sessions.</p>}
 

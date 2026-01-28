@@ -124,9 +124,12 @@ export function Templates() {
 
   return (
     <section>
-      <Button onClick={handleNew} variant="accent">
-        + New Template
-      </Button>
+      <div className="right">
+        {templates.length} templates
+        <Button onClick={handleNew} variant="accent">
+          + New Template
+        </Button>
+      </div>
 
       {templates.length > 0 && (
         <Table data={templates} columns={columns} keyExtractor={(t) => t.id} onReorder={moveTemplate} />

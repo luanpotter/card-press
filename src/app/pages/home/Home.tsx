@@ -147,24 +147,29 @@ export function Home() {
     setDragIndex(null);
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = () => {
     if (!activeSession || !activeTemplate || generating) return;
 
     setGenerating(true);
-    try {
-      const pdfBytes = await generatePdf({
-        template: activeTemplate,
-        cards: activeSession.cards,
-        getImage,
-        getPdf,
-      });
-      const filename = `${activeSession.name}.pdf`;
-      downloadPdf(pdfBytes, filename);
-    } catch {
-      // TODO: show error to user
-    } finally {
-      setGenerating(false);
-    }
+    // Use setTimeout to allow React to paint loading state before blocking
+    setTimeout(() => {
+      void (async () => {
+        try {
+          const pdfBytes = await generatePdf({
+            template: activeTemplate,
+            cards: activeSession.cards,
+            getImage,
+            getPdf,
+          });
+          const filename = `${activeSession.name}.pdf`;
+          downloadPdf(pdfBytes, filename);
+        } catch {
+          // TODO: show error to user
+        } finally {
+          setGenerating(false);
+        }
+      })();
+    }, 0);
   };
 
   if (templates.length === 0) {
@@ -258,9 +263,6 @@ export function Home() {
           <Button onClick={() => fileInputRef.current?.click()} variant="accent">
             + Add Card
           </Button>
-          <Button onClick={handleGenerate} disabled={cards.length === 0 || generating}>
-            {generating ? "Generating..." : "⬇ Generate PDF"}
-          </Button>
           <input
             ref={fileInputRef}
             type="file"
@@ -302,6 +304,14 @@ export function Home() {
         )}
 
         {cards.length === 0 && <p className="muted">No cards yet. Add a card to get started.</p>}
+      </Box>
+
+      <Box label="PDF">
+        <div className="right">
+          <Button onClick={handleGenerate} disabled={cards.length === 0 || generating}>
+            {generating ? "Generating..." : "⬇ Generate PDF"}
+          </Button>
+        </div>
       </Box>
 
       {editingCard && (

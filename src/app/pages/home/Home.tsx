@@ -7,6 +7,7 @@ import { usePdfStore } from "@/app/store/pdfs";
 import { Box } from "@/app/components/Box";
 import { Button } from "@/app/components/Button";
 import { ConfirmModal } from "@/app/components/ConfirmModal";
+import { ProgressModal } from "@/app/components/ProgressModal";
 import { Table, type Column } from "@/app/components/Table";
 import { CardModal } from "@/app/pages/home/CardModal";
 import { PasteCardModal } from "@/app/pages/home/PasteCardModal";
@@ -64,6 +65,7 @@ export function Home() {
   const [generating, setGenerating] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0 });
   const [pastedImage, setPastedImage] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
 
@@ -217,10 +219,14 @@ export function Home() {
     };
   }, [previewUrl]);
 
+  // Calculate total cards for progress tracking
+  const totalExpandedCards = cards.reduce((sum, card) => sum + card.count, 0);
+
   const handlePreview = () => {
     if (!activeSession || !activeTemplate || previewing) return;
 
     setPreviewing(true);
+    setPdfProgress({ current: 0, total: totalExpandedCards });
     setTimeout(() => {
       void (async () => {
         try {
@@ -229,6 +235,7 @@ export function Home() {
             cards: activeSession.cards,
             getImage,
             getPdf,
+            onProgress: (current, total) => setPdfProgress({ current, total }),
           });
           // Revoke old URL before creating new one
           if (previewUrl) {
@@ -250,6 +257,7 @@ export function Home() {
     if (!activeSession || !activeTemplate || generating) return;
 
     setGenerating(true);
+    setPdfProgress({ current: 0, total: totalExpandedCards });
     // Use setTimeout to allow React to paint loading state before blocking
     setTimeout(() => {
       void (async () => {
@@ -259,6 +267,7 @@ export function Home() {
             cards: activeSession.cards,
             getImage,
             getPdf,
+            onProgress: (current, total) => setPdfProgress({ current, total }),
           });
           const filename = `${activeSession.name}.pdf`;
           downloadPdf(pdfBytes, filename);
@@ -443,6 +452,15 @@ export function Home() {
       )}
 
       {showImport && <ImportCardsModal onImport={handleImportCards} onClose={() => setShowImport(false)} />}
+
+      {(previewing || generating) && (
+        <ProgressModal
+          title={previewing ? "Generating Preview" : "Generating PDF"}
+          current={pdfProgress.current}
+          total={pdfProgress.total}
+          label="Embedding cards..."
+        />
+      )}
     </section>
   );
 }

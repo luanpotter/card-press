@@ -21,6 +21,7 @@ interface GeneratePdfOptions {
   cards: Card[];
   getImage: (id: string) => StoredImage | undefined;
   getPdf: (id: string) => StoredPdf | undefined;
+  onProgress?: (current: number, total: number) => void;
 }
 
 /**
@@ -101,7 +102,13 @@ async function drawCardOnPage(
 /**
  * Generate a PDF with cards placed according to the template
  */
-export async function generatePdf({ template, cards, getImage, getPdf }: GeneratePdfOptions): Promise<Uint8Array> {
+export async function generatePdf({
+  template,
+  cards,
+  getImage,
+  getPdf,
+  onProgress,
+}: GeneratePdfOptions): Promise<Uint8Array> {
   const expandedImageIds = expandCards(cards);
 
   if (expandedImageIds.length === 0) {
@@ -167,6 +174,10 @@ export async function generatePdf({ template, cards, getImage, getPdf }: Generat
         continue;
       }
 
+      // Report progress
+      const cardIndex = startIdx + slotIndex;
+      onProgress?.(cardIndex + 1, expandedImageIds.length);
+
       await drawCardOnPage(
         pdfDoc,
         page,
@@ -176,6 +187,11 @@ export async function generatePdf({ template, cards, getImage, getPdf }: Generat
         pageDimensions.height,
         image.data
       );
+
+      // Yield to main thread periodically to keep UI responsive
+      if (slotIndex % 3 === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
     }
   }
 

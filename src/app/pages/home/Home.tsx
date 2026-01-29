@@ -15,7 +15,7 @@ import { PasteCardModal } from "@/app/pages/home/PasteCardModal";
 import { ImportCardsModal } from "@/app/pages/home/ImportCardsModal";
 import { SessionModal } from "@/app/pages/sessions/SessionModal";
 import { generatePdf, downloadPdf } from "@/utils/generatePdf";
-import type { FetchResult } from "@/utils/scryfall";
+import type { FetchResult } from "@/sources/scryfall";
 import type { Card } from "@/types/session";
 
 type ViewMode = "list" | "images";

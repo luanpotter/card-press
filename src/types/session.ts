@@ -3,6 +3,7 @@ export interface Card {
   name: string;
   count: number;
   imageId: string;
+  cardBackId?: string | undefined; // Optional per-card back override
 }
 
 export interface Session {
@@ -10,4 +11,6 @@ export interface Session {
   name: string;
   templateId: string;
   cards: Card[];
+  cardBacksEnabled?: boolean;
+  defaultCardBackId?: string;
 }

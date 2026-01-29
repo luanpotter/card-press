@@ -10,8 +10,10 @@ import { ConfirmModal } from "@/app/components/ConfirmModal";
 import { ProgressModal } from "@/app/components/ProgressModal";
 import { Table, type Column } from "@/app/components/Table";
 import { CardModal } from "@/app/pages/home/CardModal";
+import { CardBacksModal } from "@/app/pages/home/CardBacksModal";
 import { PasteCardModal } from "@/app/pages/home/PasteCardModal";
 import { ImportCardsModal } from "@/app/pages/home/ImportCardsModal";
+import { SessionModal } from "@/app/pages/sessions/SessionModal";
 import { generatePdf, downloadPdf } from "@/utils/generatePdf";
 import type { FetchResult } from "@/utils/scryfall";
 import type { Card } from "@/types/session";
@@ -51,7 +53,8 @@ function LazyCardImage({ imageId, alt }: { imageId: string; alt: string }) {
 }
 
 export function Home() {
-  const { sessions, addSession, getActiveSession, addCard, updateCard, deleteCard, moveCard } = useSessionStore();
+  const { sessions, addSession, getActiveSession, updateSession, addCard, updateCard, deleteCard, moveCard } =
+    useSessionStore();
   const { templates, defaultTemplateId } = useTemplateStore();
   const { addImage, getImage } = useImageStore();
   const { getPdf } = usePdfStore();
@@ -60,9 +63,12 @@ export function Home() {
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [editingCard, setEditingCard] = useState<Card | undefined>();
+  const [showEditSession, setShowEditSession] = useState(false);
+  const [showCardBacks, setShowCardBacks] = useState(false);
   const [deletingCard, setDeletingCard] = useState<Card | undefined>();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [generatingBacks, setGeneratingBacks] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0 });
@@ -280,6 +286,35 @@ export function Home() {
     }, 0);
   };
 
+  const handleGenerateBacks = () => {
+    if (!activeSession || !activeTemplate || generatingBacks) return;
+    if (!activeSession.cardBacksEnabled) return;
+
+    setGeneratingBacks(true);
+    setPdfProgress({ current: 0, total: totalExpandedCards });
+    setTimeout(() => {
+      void (async () => {
+        try {
+          const pdfBytes = await generatePdf({
+            template: activeTemplate,
+            cards: activeSession.cards,
+            getImage,
+            getPdf,
+            onProgress: (current, total) => setPdfProgress({ current, total }),
+            defaultCardBackId: activeSession.defaultCardBackId,
+            generateBacks: true,
+          });
+          const filename = `${activeSession.name} - Backs.pdf`;
+          downloadPdf(pdfBytes, filename);
+        } catch {
+          // TODO: show error to user
+        } finally {
+          setGeneratingBacks(false);
+        }
+      })();
+    }, 0);
+  };
+
   if (templates.length === 0) {
     return (
       <section>
@@ -347,14 +382,26 @@ export function Home() {
     ? Math.ceil(cards.reduce((sum, card) => sum + card.count, 0) / activeTemplate.slots.length)
     : 0;
 
+  const existingSessionNames = new Set(sessions.map((s) => s.name));
+
+  const handleSaveSession = (updates: { name: string; templateId: string }) => {
+    updateSession(activeSession.id, updates);
+    setShowEditSession(false);
+  };
+
   return (
     <section>
       <Box label="Session">
         <div className="columns">
           <strong>{activeSession.name}</strong>
-          <p className="muted">
-            {activeTemplate?.name ?? "Unknown"} • {activeTemplate?.slots.length ?? 0} slots
-          </p>
+          <div className="right">
+            <Button onClick={() => setShowEditSession(true)}>Edit Session</Button>
+            <Button onClick={() => setShowCardBacks(true)}>Card Backs</Button>
+          </div>
+        </div>
+        <div className="muted">
+          {activeTemplate?.name ?? "Unknown"} • {activeTemplate?.slots.length ?? 0} slots
+          {activeSession.cardBacksEnabled && " • Card Backs ✓"}
         </div>
       </Box>
 
@@ -423,6 +470,11 @@ export function Home() {
           <Button onClick={handleGenerate} disabled={cards.length === 0 || generating}>
             {generating ? "Generating..." : "⬇ Download"}
           </Button>
+          {activeSession.cardBacksEnabled && (
+            <Button onClick={handleGenerateBacks} disabled={cards.length === 0 || generatingBacks}>
+              {generatingBacks ? "Generating..." : "⬇ Download Backs"}
+            </Button>
+          )}
         </div>
         {previewUrl && (
           <iframe
@@ -434,7 +486,13 @@ export function Home() {
       </Box>
 
       {editingCard && (
-        <CardModal card={editingCard} onSave={handleSaveCard} onClose={() => setEditingCard(undefined)} />
+        <CardModal
+          card={editingCard}
+          onSave={handleSaveCard}
+          onClose={() => setEditingCard(undefined)}
+          cardBacksEnabled={activeSession.cardBacksEnabled}
+          defaultCardBackId={activeSession.defaultCardBackId}
+        />
       )}
 
       {deletingCard && (
@@ -453,7 +511,18 @@ export function Home() {
 
       {showImport && <ImportCardsModal onImport={handleImportCards} onClose={() => setShowImport(false)} />}
 
-      {(previewing || generating) && (
+      {showEditSession && (
+        <SessionModal
+          session={activeSession}
+          existingNames={existingSessionNames}
+          onSave={handleSaveSession}
+          onClose={() => setShowEditSession(false)}
+        />
+      )}
+
+      {showCardBacks && <CardBacksModal session={activeSession} onClose={() => setShowCardBacks(false)} />}
+
+      {(previewing || generating || generatingBacks) && (
         <ProgressModal
           title={previewing ? "Generating Preview" : "Generating PDF"}
           current={pdfProgress.current}

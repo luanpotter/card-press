@@ -22,17 +22,24 @@ interface GeneratePdfOptions {
   getImage: (id: string) => StoredImage | undefined;
   getPdf: (id: string) => StoredPdf | undefined;
   onProgress?: (current: number, total: number) => void;
+  // For generating backs PDF
+  defaultCardBackId?: string | undefined;
+  generateBacks?: boolean;
+}
+
+interface ExpandedCard {
+  imageId: string;
+  cardBackId: string | undefined;
 }
 
 /**
- * Expand cards by their count into a flat array of image IDs
- * e.g., [{imageId: "a", count: 2}, {imageId: "b", count: 1}] => ["a", "a", "b"]
+ * Expand cards by their count into a flat array of image IDs (and optionally back IDs)
  */
-function expandCards(cards: Card[]): string[] {
-  const expanded: string[] = [];
+function expandCards(cards: Card[]): ExpandedCard[] {
+  const expanded: ExpandedCard[] = [];
   for (const card of cards) {
     for (let i = 0; i < card.count; i++) {
-      expanded.push(card.imageId);
+      expanded.push({ imageId: card.imageId, cardBackId: card.cardBackId });
     }
   }
   return expanded;
@@ -108,10 +115,12 @@ export async function generatePdf({
   getImage,
   getPdf,
   onProgress,
+  defaultCardBackId,
+  generateBacks = false,
 }: GeneratePdfOptions): Promise<Uint8Array> {
-  const expandedImageIds = expandCards(cards);
+  const expandedCards = expandCards(cards);
 
-  if (expandedImageIds.length === 0) {
+  if (expandedCards.length === 0) {
     throw new Error("No cards to generate");
   }
 
@@ -120,7 +129,7 @@ export async function generatePdf({
     throw new Error("Template has no slots defined");
   }
 
-  const totalPages = Math.ceil(expandedImageIds.length / slotsPerPage);
+  const totalPages = Math.ceil(expandedCards.length / slotsPerPage);
   const pageDimensions = PAGE_DIMENSIONS[template.pageSize];
   const pageWidthPts = pageDimensions.width * MM_TO_POINTS;
   const pageHeightPts = pageDimensions.height * MM_TO_POINTS;
@@ -159,16 +168,26 @@ export async function generatePdf({
 
     // Get cards for this page
     const startIdx = pageIndex * slotsPerPage;
-    const pageImageIds = expandedImageIds.slice(startIdx, startIdx + slotsPerPage);
+    const pageCards = expandedCards.slice(startIdx, startIdx + slotsPerPage);
 
     // Place each card in its slot
-    for (let slotIndex = 0; slotIndex < pageImageIds.length; slotIndex++) {
-      const imageId = pageImageIds[slotIndex];
+    for (let slotIndex = 0; slotIndex < pageCards.length; slotIndex++) {
+      const expandedCard = pageCards[slotIndex];
       const slot = template.slots[slotIndex];
 
-      if (!imageId || !slot) continue;
+      if (!expandedCard || !slot) continue;
 
-      const image = getImage(imageId);
+      // Determine which image to use (front or back)
+      let imageIdToUse: string;
+      if (generateBacks) {
+        // For backs: use card-specific back, fall back to default, or skip if none
+        imageIdToUse = expandedCard.cardBackId ?? defaultCardBackId ?? "";
+        if (!imageIdToUse) continue;
+      } else {
+        imageIdToUse = expandedCard.imageId;
+      }
+
+      const image = getImage(imageIdToUse);
       if (!image) {
         // Image not found, skip this slot
         continue;
@@ -176,7 +195,7 @@ export async function generatePdf({
 
       // Report progress
       const cardIndex = startIdx + slotIndex;
-      onProgress?.(cardIndex + 1, expandedImageIds.length);
+      onProgress?.(cardIndex + 1, expandedCards.length);
 
       await drawCardOnPage(
         pdfDoc,

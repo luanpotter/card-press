@@ -22,6 +22,7 @@ body {
   background-color: #000;
   color: var(--text);
   font-family: monospace;
+  line-height: 1.4;
   display: flex;
   justify-content: center;
 }
@@ -396,7 +397,6 @@ div.columns {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
 }
 
 div.right {
@@ -465,4 +465,66 @@ div.right {
 .card-icon-count {
   font-size: 0.75em;
   color: var(--muted);
+}
+
+/* Toggle component */
+.toggle {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-track {
+  display: inline-flex;
+  align-items: center;
+  width: 44px;
+  height: 26px;
+  min-width: 44px;
+  min-height: 26px;
+  border: 1px solid var(--border);
+  background: #000;
+  position: relative;
+  box-sizing: border-box;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+
+.toggle-track.checked {
+  border-color: var(--accent);
+}
+
+.toggle-thumb {
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  background: var(--border);
+  box-sizing: border-box;
+  transition:
+    left 0.15s,
+    background-color 0.15s;
+}
+
+.toggle-track.checked .toggle-thumb {
+  left: 21px;
+  background: var(--accent);
+}
+
+label.toggle {
+  color: var(--text);
+  font-size: 1em;
+}
+
+.toggle:hover .toggle-track {
+  border-color: var(--text);
+}
+
+.toggle:hover .toggle-track.checked {
+  border-color: var(--accent);
 }

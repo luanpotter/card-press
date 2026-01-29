@@ -54,7 +54,7 @@ export function Config() {
 
   return (
     <main>
-      <Box label="Templates">
+      <ElementBox label="Templates">
         <Element>
           <span>
             PDFs stored: {pdfs.length} ({usedPdfCount} used, {unusedPdfCount} unused)
@@ -74,9 +74,9 @@ export function Config() {
             </Button>
           </Buttons>
         </Element>
-      </Box>
+      </ElementBox>
 
-      <Box label="Sessions">
+      <ElementBox label="Sessions">
         <Element>
           <span>
             Images stored: {images.length} ({usedImageCount} used, {unusedImageCount} unused)
@@ -91,15 +91,15 @@ export function Config() {
             Delete All Sessions
           </Button>
         </Element>
-      </Box>
+      </ElementBox>
 
-      <Box label="Danger Zone" error="Exercise caution">
+      <ElementBox label="Danger Zone" error="Exercise caution">
         <div className="right">
           <Button onClick={() => setShowFactoryResetModal(true)} variant="danger">
             Factory Reset
           </Button>
         </div>
-      </Box>
+      </ElementBox>
 
       {showDeleteAllModal && (
         <ConfirmModal
@@ -139,6 +139,12 @@ export function Config() {
     </main>
   );
 }
+
+const ElementBox = ({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) => (
+  <Box label={label} error={error}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>{children}</div>
+  </Box>
+);
 
 const Element = ({ children }: { children: React.ReactNode }) => <div className="columns">{children}</div>;
 

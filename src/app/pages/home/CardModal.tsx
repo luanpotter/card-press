@@ -7,17 +7,21 @@ import { useRef, useState } from "react";
 
 interface CardModalProps {
   card: Card;
+  cardBacksEnabled?: boolean | undefined;
+  defaultCardBackId?: string | undefined;
   onSave: (card: Partial<Omit<Card, "id">>) => void;
   onClose: () => void;
 }
 
-export function CardModal({ card, onSave, onClose }: CardModalProps) {
+export function CardModal({ card, cardBacksEnabled, defaultCardBackId, onSave, onClose }: CardModalProps) {
   const { getImage, addImage } = useImageStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const backFileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(card.name);
   const [count, setCount] = useState(String(card.count));
   const [imageId, setImageId] = useState(card.imageId);
+  const [cardBackId, setCardBackId] = useState<string | undefined>("cardBackId" in card ? card.cardBackId : undefined);
 
   const [errors, setErrors] = useState<{
     name?: string;
@@ -25,6 +29,8 @@ export function CardModal({ card, onSave, onClose }: CardModalProps) {
   }>({});
 
   const image = getImage(imageId);
+  const cardBackImage = cardBackId ? getImage(cardBackId) : null;
+  const effectiveBackImage = cardBackImage ?? (defaultCardBackId ? getImage(defaultCardBackId) : null);
 
   const validate = () => {
     const newErrors: typeof errors = {};
@@ -37,7 +43,11 @@ export function CardModal({ card, onSave, onClose }: CardModalProps) {
 
   const handleSave = () => {
     if (!validate()) return;
-    onSave({ name: name.trim(), count: Number(count), imageId });
+    const updates: Partial<Omit<Card, "id">> = { name: name.trim(), count: Number(count), imageId };
+    if (cardBackId !== undefined) {
+      updates.cardBackId = cardBackId;
+    }
+    onSave(updates);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,8 +61,20 @@ export function CardModal({ card, onSave, onClose }: CardModalProps) {
       setImageId(newImageId);
     };
     reader.readAsDataURL(file);
+    e.target.value = "";
+  };
 
-    // Reset input so same file can be selected again
+  const handleBackFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const data = reader.result as string;
+      const newImageId = addImage(file.name, data);
+      setCardBackId(newImageId);
+    };
+    reader.readAsDataURL(file);
     e.target.value = "";
   };
 
@@ -71,25 +93,62 @@ export function CardModal({ card, onSave, onClose }: CardModalProps) {
 
       <Input label="Count" type="number" value={count} onChange={setCount} error={errors.count} />
 
-      <div style={{ marginTop: "12px" }}>
-        <label className="label">Image</label>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "4px" }}>
+      <div style={{ marginTop: "12px", display: "flex", gap: "16px" }}>
+        {/* Image (front) column */}
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+            <Button onClick={() => fileInputRef.current?.click()}>Change Image</Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={handleFileChange}
+              hidden
+            />
+          </div>
           {image && (
             <img
               src={image.data}
               alt={image.name}
-              style={{ maxWidth: "400px", maxHeight: "400px", border: "1px solid var(--border)" }}
+              style={{ width: "100%", height: "auto", border: "1px solid var(--border)" }}
             />
           )}
-          <Button onClick={() => fileInputRef.current?.click()}>Change Image</Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={handleFileChange}
-            hidden
-          />
         </div>
+
+        {/* Card back column */}
+        {cardBacksEnabled && (
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+              <Button onClick={() => backFileInputRef.current?.click()}>Custom Back</Button>
+              {cardBackId && (
+                <Button onClick={() => setCardBackId(undefined)} variant="danger">
+                  Use Default
+                </Button>
+              )}
+              <input
+                ref={backFileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={handleBackFileChange}
+                hidden
+              />
+            </div>
+            {effectiveBackImage ? (
+              <img
+                src={effectiveBackImage.data}
+                alt="Card back"
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  border: "1px solid var(--border)",
+                  opacity: cardBackId ? 1 : 0.7,
+                }}
+              />
+            ) : (
+              <div style={{ color: "var(--muted)", padding: "12px 0" }}>No back set</div>
+            )}
+          </div>
+        )}
       </div>
     </Modal>
   );

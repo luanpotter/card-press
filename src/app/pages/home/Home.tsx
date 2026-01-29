@@ -10,7 +10,9 @@ import { ConfirmModal } from "@/app/components/ConfirmModal";
 import { Table, type Column } from "@/app/components/Table";
 import { CardModal } from "@/app/pages/home/CardModal";
 import { PasteCardModal } from "@/app/pages/home/PasteCardModal";
+import { ImportCardsModal } from "@/app/pages/home/ImportCardsModal";
 import { generatePdf, downloadPdf } from "@/utils/generatePdf";
+import type { FetchResult } from "@/utils/scryfall";
 import type { Card } from "@/types/session";
 
 type ViewMode = "list" | "images";
@@ -63,6 +65,7 @@ export function Home() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [pastedImage, setPastedImage] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
     // Use ref to prevent double initialization in StrictMode
@@ -116,12 +119,32 @@ export function Home() {
 
   const activeSession = getActiveSession();
   const activeTemplate = activeSession ? templates.find((t) => t.id === activeSession.templateId) : undefined;
+  const cards = activeSession?.cards ?? [];
+
+  // Clear preview when cards become empty
+  useEffect(() => {
+    if (cards.length === 0 && previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  }, [cards.length, previewUrl]);
 
   const handleSavePastedCard = (name: string, count: number) => {
     if (!activeSession || !pastedImage) return;
     const imageId = addImage("pasted-image", pastedImage);
     addCard(activeSession.id, { name, count, imageId });
     setPastedImage(null);
+  };
+
+  const handleImportCards = (cards: FetchResult[]) => {
+    if (!activeSession) return;
+    for (const card of cards) {
+      if (card.imageId) {
+        // Images already stored during fetch - just create card entries
+        addCard(activeSession.id, { name: card.name, count: card.count, imageId: card.imageId });
+      }
+    }
+    setShowImport(false);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -266,8 +289,6 @@ export function Home() {
     );
   }
 
-  const cards = activeSession.cards;
-
   const cardColumns: Column<Card>[] = [
     {
       key: "name",
@@ -338,6 +359,9 @@ export function Home() {
           </Button>
           <Button onClick={() => fileInputRef.current?.click()} variant="accent">
             + Add Card
+          </Button>
+          <Button onClick={() => setShowImport(true)} variant="accent">
+            + Import Cards
           </Button>
           <input
             ref={fileInputRef}
@@ -417,6 +441,8 @@ export function Home() {
       {pastedImage && (
         <PasteCardModal imageData={pastedImage} onSave={handleSavePastedCard} onClose={() => setPastedImage(null)} />
       )}
+
+      {showImport && <ImportCardsModal onImport={handleImportCards} onClose={() => setShowImport(false)} />}
     </section>
   );
 }

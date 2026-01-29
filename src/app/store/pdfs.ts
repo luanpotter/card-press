@@ -11,6 +11,8 @@ export interface StoredPdf {
 
 interface PdfState {
   pdfs: StoredPdf[];
+  _hydrated: boolean;
+  _setHydrated: () => void;
   addPdf: (name: string, data: string) => string;
   deletePdf: (id: string) => void;
   getPdf: (id: string) => StoredPdf | undefined;
@@ -21,6 +23,8 @@ export const usePdfStore = create<PdfState>()(
   persist(
     (set, get) => ({
       pdfs: [],
+      _hydrated: false,
+      _setHydrated: () => set({ _hydrated: true }),
       addPdf: (name, data) => {
         const hash = hashData(data);
         const { pdfs } = get();
@@ -58,6 +62,9 @@ export const usePdfStore = create<PdfState>()(
     {
       name: "card-press-pdfs",
       storage: indexedDBZustandStorage,
+      onRehydrateStorage: () => (state) => {
+        state?._setHydrated();
+      },
     }
   )
 );

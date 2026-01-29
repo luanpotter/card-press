@@ -11,6 +11,8 @@ export interface StoredImage {
 
 interface ImageState {
   images: StoredImage[];
+  _hydrated: boolean;
+  _setHydrated: () => void;
   addImage: (name: string, data: string) => string;
   deleteImage: (id: string) => void;
   getImage: (id: string) => StoredImage | undefined;
@@ -21,6 +23,8 @@ export const useImageStore = create<ImageState>()(
   persist(
     (set, get) => ({
       images: [],
+      _hydrated: false,
+      _setHydrated: () => set({ _hydrated: true }),
       addImage: (name, data) => {
         const hash = hashData(data);
         const { images } = get();
@@ -58,6 +62,9 @@ export const useImageStore = create<ImageState>()(
     {
       name: "card-press-images",
       storage: indexedDBZustandStorage,
+      onRehydrateStorage: () => (state) => {
+        state?._setHydrated();
+      },
     }
   )
 );

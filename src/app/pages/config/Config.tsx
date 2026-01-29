@@ -9,9 +9,18 @@ import { useTemplateStore } from "@/app/store/templates";
 import { DEFAULT_TEMPLATES } from "@/types/template";
 import { useState } from "react";
 
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / Math.pow(1024, i);
+  const unit = units[i] ?? "B";
+  return `${value.toFixed(value < 10 ? 1 : 0)} ${unit}`;
+}
+
 export function Config() {
-  const { images, pruneImages } = useImageStore();
-  const { pdfs, prunePdfs } = usePdfStore();
+  const { images, pruneImages, _hydrated: imagesHydrated } = useImageStore();
+  const { pdfs, prunePdfs, _hydrated: pdfsHydrated } = usePdfStore();
   const { sessions, deleteAllSessions } = useSessionStore();
   const { templates, deleteAllTemplates } = useTemplateStore();
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
@@ -48,18 +57,26 @@ export function Config() {
 
   const usedPdfCount = new Set(templates.map((t) => t.basePdfId).filter((id) => id !== undefined)).size;
   const unusedPdfCount = pdfs.length - usedPdfCount;
+  const pdfSize = pdfs.reduce((acc, p) => acc + p.data.length, 0);
 
   const usedImageCount = new Set(sessions.flatMap((s) => s.cards.map((c) => c.imageId))).size;
   const unusedImageCount = images.length - usedImageCount;
+  const imageSize = images.reduce((acc, img) => acc + img.data.length, 0);
+
+  const pdfStats = pdfsHydrated
+    ? `PDFs stored: ${String(pdfs.length)} (${String(usedPdfCount)} used, ${String(unusedPdfCount)} unused, ${formatBytes(pdfSize)})`
+    : "[loading]";
+
+  const imageStats = imagesHydrated
+    ? `Images stored: ${String(images.length)} (${String(usedImageCount)} used, ${String(unusedImageCount)} unused, ${formatBytes(imageSize)})`
+    : "[loading]";
 
   return (
     <main>
       <ElementBox label="Templates">
         <Element>
-          <span>
-            PDFs stored: {pdfs.length} ({usedPdfCount} used, {unusedPdfCount} unused)
-          </span>
-          <Button onClick={handlePrunePdfs} variant="danger" disabled={unusedPdfCount === 0}>
+          <span>{pdfStats}</span>
+          <Button onClick={handlePrunePdfs} variant="danger" disabled={!pdfsHydrated || unusedPdfCount === 0}>
             Prune Unused PDFs
           </Button>
         </Element>
@@ -78,10 +95,8 @@ export function Config() {
 
       <ElementBox label="Sessions">
         <Element>
-          <span>
-            Images stored: {images.length} ({usedImageCount} used, {unusedImageCount} unused)
-          </span>
-          <Button onClick={handlePruneImages} variant="danger" disabled={unusedImageCount === 0}>
+          <span>{imageStats}</span>
+          <Button onClick={handlePruneImages} variant="danger" disabled={!imagesHydrated || unusedImageCount === 0}>
             Prune Unused Images
           </Button>
         </Element>

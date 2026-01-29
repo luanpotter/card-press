@@ -1,4 +1,4 @@
-import { DEFAULT_CARD_SIZE } from "@/types/card";
+import { CARD_SIZE_PRESETS, CardSizePreset } from "@/types/card";
 import type { Dimension } from "@/types/dimension";
 import { PAGE_DIMENSIONS, PageSize } from "@/types/page";
 import { generateGrid } from "@/utils/grid";
@@ -26,35 +26,50 @@ export interface DefaultTemplate extends Omit<Template, "id" | "basePdfId"> {
   isDefault?: boolean;
 }
 
+const mtgSize = CARD_SIZE_PRESETS[CardSizePreset.MTG];
+const yugiohSize = CARD_SIZE_PRESETS[CardSizePreset.YuGiOh];
+
 export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   {
     name: "A4 - MTG 3x3",
-    pageSize: PageSize.A4,
-    cardSize: DEFAULT_CARD_SIZE,
-    slots: generateGrid({
+    ...griSslots({
+      pageSize: PageSize.A4,
+      cardSize: mtgSize,
       cols: 3,
       rows: 3,
-      gap: 5,
-      cardSize: DEFAULT_CARD_SIZE,
-      pageSize: PAGE_DIMENSIONS[PageSize.A4],
+    }),
+  },
+  {
+    name: "A4 - Yu-Gi-Oh! 3x3",
+    ...griSslots({
+      pageSize: PageSize.A4,
+      cardSize: yugiohSize,
+      cols: 3,
+      rows: 3,
     }),
   },
   {
     name: "Letter - MTG 3x3",
-    pageSize: PageSize.Letter,
-    cardSize: DEFAULT_CARD_SIZE,
-    slots: generateGrid({
+    ...griSslots({
+      pageSize: PageSize.Letter,
+      cardSize: mtgSize,
       cols: 3,
       rows: 3,
-      gap: 5,
-      cardSize: DEFAULT_CARD_SIZE,
-      pageSize: PAGE_DIMENSIONS[PageSize.Letter],
+    }),
+  },
+  {
+    name: "Letter - Yu-Gi-Oh! 3x3",
+    ...griSslots({
+      pageSize: PageSize.Letter,
+      cardSize: yugiohSize,
+      cols: 3,
+      rows: 3,
     }),
   },
   {
     name: "Letter / Cricut - MTG 3x2",
     pageSize: PageSize.Letter,
-    cardSize: DEFAULT_CARD_SIZE,
+    cardSize: mtgSize,
     slots: generateCricutSlots(),
     bundledPdf: {
       name: "Cricut Template",
@@ -64,7 +79,35 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   },
 ];
 
-function generateCricutSlots() {
+function griSslots({
+  pageSize,
+  cardSize,
+  cols,
+  rows,
+}: {
+  pageSize: PageSize;
+  cardSize: Dimension;
+  cols: number;
+  rows: number;
+}): {
+  pageSize: PageSize;
+  cardSize: Dimension;
+  slots: Slot[];
+} {
+  return {
+    pageSize,
+    cardSize,
+    slots: generateGrid({
+      cols,
+      rows,
+      gap: 5,
+      cardSize,
+      pageSize: PAGE_DIMENSIONS[pageSize],
+    }),
+  };
+}
+
+function generateCricutSlots(): Slot[] {
   const offset = { x: 13.2, y: 46.8 };
   const gap = { x: 63.11, dy: 88.11 };
   return [

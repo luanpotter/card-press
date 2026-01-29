@@ -103,7 +103,16 @@ export function Templates() {
     {
       key: "basePdf",
       header: "Base PDF",
-      render: (template) => (template.basePdfId ? (getPdf(template.basePdfId)?.name ?? "—") : "—"),
+      render: (template) => {
+        if (!template.basePdfId) return "—";
+        const pdf = getPdf(template.basePdfId);
+        if (!pdf) return "—";
+        return (
+          <a href={pdf.data} download={pdf.name} onClick={(e) => e.stopPropagation()} title="Download base PDF">
+            {pdf.name}
+          </a>
+        );
+      },
     },
     {
       key: "actions",

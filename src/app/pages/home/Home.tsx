@@ -125,6 +125,39 @@ export function Home() {
     return () => document.removeEventListener("paste", handlePaste);
   }, []);
 
+  // Handle drag and drop for image files
+  useEffect(() => {
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const files = e.dataTransfer?.files;
+      if (!files || files.length === 0) return;
+
+      const file = files[0];
+      if (!file?.type.startsWith("image/")) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const data = reader.result as string;
+        setPastedImage(data);
+      };
+      reader.readAsDataURL(file);
+    };
+
+    document.addEventListener("dragover", handleDragOver);
+    document.addEventListener("drop", handleDrop);
+    return () => {
+      document.removeEventListener("dragover", handleDragOver);
+      document.removeEventListener("drop", handleDrop);
+    };
+  }, []);
+
   const activeSession = getActiveSession();
   const activeTemplate = activeSession ? templates.find((t) => t.id === activeSession.templateId) : undefined;
   const cards = activeSession?.cards ?? [];

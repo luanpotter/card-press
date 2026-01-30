@@ -68,6 +68,8 @@ export function Home() {
   const [deletingCard, setDeletingCard] = useState<Card | undefined>();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [pastedImage, setPastedImage] = useState<string | null>(null);
+  const [droppedImageName, setDroppedImageName] = useState<string | undefined>(undefined);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
@@ -122,36 +124,79 @@ export function Home() {
 
   // Handle drag and drop for image files
   useEffect(() => {
+    const handleDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(true);
+    };
+
     const handleDragOver = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
     };
 
+    const handleDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Only hide if leaving the document entirely
+      if (e.relatedTarget === null) {
+        setIsDraggingOver(false);
+      }
+    };
+
     const handleDrop = (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      setIsDraggingOver(false);
 
       const files = e.dataTransfer?.files;
       if (!files || files.length === 0) return;
 
-      const file = files[0];
-      if (!file?.type.startsWith("image/")) return;
+      // Filter to only image files
+      const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
+      if (imageFiles.length === 0) return;
 
+      const session = getActiveSession();
+      if (!session) return;
+
+      // Multiple files: add all directly without modal
+      if (imageFiles.length > 1) {
+        for (const file of imageFiles) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const data = reader.result as string;
+            const imageId = addImage(file.name, data);
+            const name = file.name.replace(/\.[^.]+$/, "");
+            addCard(session.id, { name, count: 1, imageId });
+          };
+          reader.readAsDataURL(file);
+        }
+        return;
+      }
+
+      // Single file: show modal with prefilled name
+      const file = imageFiles[0];
+      if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
         const data = reader.result as string;
+        setDroppedImageName(file.name.replace(/\.[^.]+$/, ""));
         setPastedImage(data);
       };
       reader.readAsDataURL(file);
     };
 
+    document.addEventListener("dragenter", handleDragEnter);
     document.addEventListener("dragover", handleDragOver);
+    document.addEventListener("dragleave", handleDragLeave);
     document.addEventListener("drop", handleDrop);
     return () => {
+      document.removeEventListener("dragenter", handleDragEnter);
       document.removeEventListener("dragover", handleDragOver);
+      document.removeEventListener("dragleave", handleDragLeave);
       document.removeEventListener("drop", handleDrop);
     };
-  }, []);
+  }, [getActiveSession, addImage, addCard]);
 
   const activeSession = getActiveSession();
   const activeTemplate = activeSession ? templates.find((t) => t.id === activeSession.templateId) : undefined;
@@ -190,6 +235,7 @@ export function Home() {
     const imageId = addImage("pasted-image", pastedImage);
     addCard(activeSession.id, { name, count, imageId });
     setPastedImage(null);
+    setDroppedImageName(undefined);
   };
 
   const handleImportCards = (cards: FetchResult[]) => {
@@ -455,7 +501,15 @@ export function Home() {
       )}
 
       {pastedImage && (
-        <QuickAddCardModal imageData={pastedImage} onSave={handleSavePastedCard} onClose={() => setPastedImage(null)} />
+        <QuickAddCardModal
+          imageData={pastedImage}
+          defaultName={droppedImageName}
+          onSave={handleSavePastedCard}
+          onClose={() => {
+            setPastedImage(null);
+            setDroppedImageName(undefined);
+          }}
+        />
       )}
 
       {showImport && <ImportCardsModal onImport={handleImportCards} onClose={() => setShowImport(false)} />}
@@ -488,6 +542,12 @@ export function Home() {
           onConfirm={clearPdfError}
           onClose={clearPdfError}
         />
+      )}
+
+      {isDraggingOver && (
+        <div className="drop-overlay">
+          <div className="drop-overlay-content">Drop image(s) to add cards</div>
+        </div>
       )}
     </section>
   );

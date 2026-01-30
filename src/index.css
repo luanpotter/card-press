@@ -528,3 +528,22 @@ label.toggle {
 .toggle:hover .toggle-track.checked {
   border-color: var(--accent);
 }
+
+/* Drop overlay */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.drop-overlay-content {
+  border: 2px dashed var(--accent);
+  color: var(--accent);
+  padding: 48px 64px;
+  font-size: 1.5em;
+}

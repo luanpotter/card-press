@@ -5,6 +5,7 @@ import { useState } from "react";
 
 interface QuickAddCardModalProps {
   imageData: string;
+  defaultName?: string | undefined;
   onSave: (name: string, count: number) => void;
   onClose: () => void;
 }
@@ -13,8 +14,8 @@ interface QuickAddCardModalProps {
  * Modal for quickly adding a card from a pasted or dropped image.
  * Shows a preview and allows naming the card before adding.
  */
-export function QuickAddCardModal({ imageData, onSave, onClose }: QuickAddCardModalProps) {
-  const [name, setName] = useState("unnamed");
+export function QuickAddCardModal({ imageData, defaultName, onSave, onClose }: QuickAddCardModalProps) {
+  const [name, setName] = useState(defaultName ?? "unnamed");
   const [count, setCount] = useState("1");
 
   const [errors, setErrors] = useState<{

@@ -3,13 +3,17 @@ import { Input } from "@/app/components/Input";
 import { Modal } from "@/app/components/Modal";
 import { useState } from "react";
 
-interface PasteCardModalProps {
+interface QuickAddCardModalProps {
   imageData: string;
   onSave: (name: string, count: number) => void;
   onClose: () => void;
 }
 
-export function PasteCardModal({ imageData, onSave, onClose }: PasteCardModalProps) {
+/**
+ * Modal for quickly adding a card from a pasted or dropped image.
+ * Shows a preview and allows naming the card before adding.
+ */
+export function QuickAddCardModal({ imageData, onSave, onClose }: QuickAddCardModalProps) {
   const [name, setName] = useState("unnamed");
   const [count, setCount] = useState("1");
 
@@ -42,13 +46,13 @@ export function PasteCardModal({ imageData, onSave, onClose }: PasteCardModalPro
   );
 
   return (
-    <Modal title="Add Card from Clipboard" onClose={onClose} footer={footer}>
+    <Modal title="Add Card" onClose={onClose} footer={footer}>
       <div style={{ marginBottom: "12px" }}>
         <label className="label">Preview</label>
         <div style={{ marginTop: "4px" }}>
           <img
             src={imageData}
-            alt="Pasted image"
+            alt="Card preview"
             style={{
               maxWidth: "400px",
               maxHeight: "400px",

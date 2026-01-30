@@ -11,10 +11,10 @@ import { ProgressModal } from "@/app/components/ProgressModal";
 import { Table, type Column } from "@/app/components/Table";
 import { CardModal } from "@/app/pages/home/CardModal";
 import { CardBacksModal } from "@/app/pages/home/CardBacksModal";
-import { PasteCardModal } from "@/app/pages/home/PasteCardModal";
+import { QuickAddCardModal } from "@/app/pages/home/QuickAddCardModal";
 import { ImportCardsModal } from "@/app/pages/home/ImportCardsModal";
 import { SessionModal } from "@/app/pages/sessions/SessionModal";
-import { generatePdf, downloadPdf } from "@/utils/generatePdf";
+import { usePdfGenerator } from "@/app/pages/home/usePdfGenerator";
 import type { FetchResult } from "@/sources/scryfall";
 import type { Card } from "@/types/session";
 
@@ -67,11 +67,6 @@ export function Home() {
   const [showCardBacks, setShowCardBacks] = useState(false);
   const [deletingCard, setDeletingCard] = useState<Card | undefined>();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const [generating, setGenerating] = useState(false);
-  const [generatingBacks, setGeneratingBacks] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewing, setPreviewing] = useState(false);
-  const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0 });
   const [pastedImage, setPastedImage] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
 
@@ -162,13 +157,33 @@ export function Home() {
   const activeTemplate = activeSession ? templates.find((t) => t.id === activeSession.templateId) : undefined;
   const cards = activeSession?.cards ?? [];
 
+  // PDF generation hook
+  const {
+    generating,
+    generatingBacks,
+    previewing,
+    previewUrl,
+    pdfProgress,
+    error: pdfError,
+    handlePreview,
+    handleGenerate,
+    handleGenerateBacks,
+    clearPreview,
+    clearError: clearPdfError,
+  } = usePdfGenerator({
+    cards,
+    session: activeSession ?? { id: "", name: "", templateId: "", cards: [], cardBacksEnabled: false },
+    template: activeTemplate,
+    getImage,
+    getPdf,
+  });
+
   // Clear preview when cards become empty
   useEffect(() => {
-    if (cards.length === 0 && previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
+    if (cards.length === 0) {
+      clearPreview();
     }
-  }, [cards.length, previewUrl]);
+  }, [cards.length, clearPreview]);
 
   const handleSavePastedCard = (name: string, count: number) => {
     if (!activeSession || !pastedImage) return;
@@ -247,105 +262,6 @@ export function Home() {
 
   const handleDragEnd = () => {
     setDragIndex(null);
-  };
-
-  // Cleanup preview URL on unmount or when URL changes
-  useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
-
-  // Calculate total cards for progress tracking
-  const totalExpandedCards = cards.reduce((sum, card) => sum + card.count, 0);
-
-  const handlePreview = () => {
-    if (!activeSession || !activeTemplate || previewing) return;
-
-    setPreviewing(true);
-    setPdfProgress({ current: 0, total: totalExpandedCards });
-    setTimeout(() => {
-      void (async () => {
-        try {
-          const pdfBytes = await generatePdf({
-            template: activeTemplate,
-            cards: activeSession.cards,
-            getImage,
-            getPdf,
-            onProgress: (current, total) => setPdfProgress({ current, total }),
-          });
-          // Revoke old URL before creating new one
-          if (previewUrl) {
-            URL.revokeObjectURL(previewUrl);
-          }
-          const blob = new Blob([pdfBytes as BlobPart], { type: "application/pdf" });
-          const url = URL.createObjectURL(blob);
-          setPreviewUrl(url);
-        } catch {
-          // TODO: show error to user
-        } finally {
-          setPreviewing(false);
-        }
-      })();
-    }, 0);
-  };
-
-  const handleGenerate = () => {
-    if (!activeSession || !activeTemplate || generating) return;
-
-    setGenerating(true);
-    setPdfProgress({ current: 0, total: totalExpandedCards });
-    // Use setTimeout to allow React to paint loading state before blocking
-    setTimeout(() => {
-      void (async () => {
-        try {
-          const pdfBytes = await generatePdf({
-            template: activeTemplate,
-            cards: activeSession.cards,
-            getImage,
-            getPdf,
-            onProgress: (current, total) => setPdfProgress({ current, total }),
-          });
-          const filename = `${activeSession.name}.pdf`;
-          downloadPdf(pdfBytes, filename);
-        } catch {
-          // TODO: show error to user
-        } finally {
-          setGenerating(false);
-        }
-      })();
-    }, 0);
-  };
-
-  const handleGenerateBacks = () => {
-    if (!activeSession || !activeTemplate || generatingBacks) return;
-    if (!activeSession.cardBacksEnabled) return;
-
-    setGeneratingBacks(true);
-    setPdfProgress({ current: 0, total: totalExpandedCards });
-    setTimeout(() => {
-      void (async () => {
-        try {
-          const pdfBytes = await generatePdf({
-            template: activeTemplate,
-            cards: activeSession.cards,
-            getImage,
-            getPdf,
-            onProgress: (current, total) => setPdfProgress({ current, total }),
-            defaultCardBackId: activeSession.defaultCardBackId,
-            generateBacks: true,
-          });
-          const filename = `${activeSession.name} - Backs.pdf`;
-          downloadPdf(pdfBytes, filename);
-        } catch {
-          // TODO: show error to user
-        } finally {
-          setGeneratingBacks(false);
-        }
-      })();
-    }, 0);
   };
 
   if (templates.length === 0) {
@@ -498,14 +414,14 @@ export function Home() {
       <Box label="PDF">
         <div className="right">
           <Button onClick={handlePreview} disabled={cards.length === 0 || previewing}>
-            {previewing ? "Loading..." : "👁 Preview"}
+            {previewing ? "Loading..." : "Preview"}
           </Button>
           <Button onClick={handleGenerate} disabled={cards.length === 0 || generating}>
-            {generating ? "Generating..." : "⬇ Download"}
+            {generating ? "Generating..." : "↓ Download"}
           </Button>
           {activeSession.cardBacksEnabled && (
             <Button onClick={handleGenerateBacks} disabled={cards.length === 0 || generatingBacks}>
-              {generatingBacks ? "Generating..." : "⬇ Download Backs"}
+              {generatingBacks ? "Generating..." : "↓ Download Backs"}
             </Button>
           )}
         </div>
@@ -539,7 +455,7 @@ export function Home() {
       )}
 
       {pastedImage && (
-        <PasteCardModal imageData={pastedImage} onSave={handleSavePastedCard} onClose={() => setPastedImage(null)} />
+        <QuickAddCardModal imageData={pastedImage} onSave={handleSavePastedCard} onClose={() => setPastedImage(null)} />
       )}
 
       {showImport && <ImportCardsModal onImport={handleImportCards} onClose={() => setShowImport(false)} />}
@@ -561,6 +477,16 @@ export function Home() {
           current={pdfProgress.current}
           total={pdfProgress.total}
           label="Embedding cards..."
+        />
+      )}
+
+      {pdfError && (
+        <ConfirmModal
+          title="PDF Error"
+          message={pdfError}
+          confirmLabel="OK"
+          onConfirm={clearPdfError}
+          onClose={clearPdfError}
         />
       )}
     </section>

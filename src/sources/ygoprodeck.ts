@@ -1,3 +1,5 @@
+import { registerSource, type ParsedCard, type FetchResult } from "@/sources/index";
+
 export interface YGOCard {
   id: number;
   name: string;
@@ -9,22 +11,8 @@ export interface YGOCard {
   }[];
 }
 
-export interface YGOApiResponse {
+interface YGOApiResponse {
   data: YGOCard[];
-  error?: string;
-}
-
-export interface ParsedYGOCardLine {
-  count: number;
-  name?: string;
-  id?: number;
-}
-
-export interface FetchResult {
-  name: string;
-  count: number;
-  imageId?: string;
-  imageData?: string;
   error?: string;
 }
 
@@ -34,12 +22,12 @@ export interface FetchResult {
  * - "3x Blue-Eyes White Dragon"
  * - YDK format (card IDs)
  */
-export function parseYGOCardList(text: string): ParsedYGOCardLine[] {
+export function parseYGOCardList(text: string): ParsedCard[] {
   const lines = text
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
-  const cards: ParsedYGOCardLine[] = [];
+  const cards: ParsedCard[] = [];
 
   // Detect YDK format (starts with #created or has #main section)
   const isYDK = lines.some((l) => l.startsWith("#main") || l.startsWith("#created"));
@@ -103,7 +91,7 @@ export function parseYGOCardList(text: string): ParsedYGOCardLine[] {
  * Fetch a single card from YGOPRODeck API
  * Note: Requires CORS to be disabled in browser
  */
-async function fetchCardFromYGO(card: ParsedYGOCardLine): Promise<YGOCard> {
+async function fetchCardFromYGO(card: ParsedCard): Promise<YGOCard> {
   let url: string;
 
   if (card.id) {
@@ -167,7 +155,7 @@ async function fetchCardImage(imageUrl: string): Promise<string> {
  * Rate limit: 20 requests/second, we'll use 50ms delay to be safe
  */
 export async function fetchCardsFromYGO(
-  cards: ParsedYGOCardLine[],
+  cards: ParsedCard[],
   addImage: (name: string, data: string) => string,
   onProgress?: (current: number, total: number, name: string) => void
 ): Promise<FetchResult[]> {
@@ -221,3 +209,13 @@ export async function fetchCardsFromYGO(
 
   return results;
 }
+
+registerSource({
+  id: "ygo-ygoprodeck",
+  name: "Yu-Gi-Oh! (YGOPRODeck)",
+  placeholder: "3 Dark Magician\n3x Blue-Eyes White Dragon\n\nOr paste a .ydk file",
+  corsWarning:
+    "YGOPRODeck requires a browser extension to bypass CORS. Install one for Chrome or Firefox and enable it before importing.",
+  parse: parseYGOCardList,
+  fetch: fetchCardsFromYGO,
+});

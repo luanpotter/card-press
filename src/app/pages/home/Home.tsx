@@ -15,7 +15,7 @@ import { QuickAddCardModal } from "@/app/pages/home/QuickAddCardModal";
 import { ImportCardsModal } from "@/app/pages/home/ImportCardsModal";
 import { SessionModal } from "@/app/pages/sessions/SessionModal";
 import { usePdfGenerator } from "@/app/pages/home/usePdfGenerator";
-import type { FetchResult } from "@/sources/scryfall";
+import type { FetchResult } from "@/sources/index";
 import type { Card } from "@/types/session";
 
 type ViewMode = "list" | "images";

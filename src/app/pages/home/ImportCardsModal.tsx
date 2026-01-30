@@ -1,12 +1,13 @@
 import { Button } from "@/app/components/Button";
 import { Modal } from "@/app/components/Modal";
 import { useImageStore } from "@/app/store/images";
-import { parseCardList, fetchCardsFromScryfall, type FetchResult } from "@/sources/scryfall";
-import { parseYGOCardList, fetchCardsFromYGO } from "@/sources/ygoprodeck";
-import { parsePokemonCardList, fetchCardsFromPokemonTCG } from "@/sources/pokemontcg";
+import { getAllSources, getSource, type FetchResult } from "@/sources/index";
 import { useState } from "react";
 
-type ImportSource = "mtg-scryfall" | "ygo-ygoprodeck" | "pokemon-pokemontcg";
+// Import sources to register them
+import "@/sources/scryfall";
+import "@/sources/ygoprodeck";
+import "@/sources/pokemontcg";
 
 interface ImportCardsModalProps {
   onImport: (cards: FetchResult[]) => void;
@@ -17,53 +18,30 @@ type Step = "input" | "loading" | "results";
 
 export function ImportCardsModal({ onImport, onClose }: ImportCardsModalProps) {
   const { addImage } = useImageStore();
-  const [source, setSource] = useState<ImportSource>("mtg-scryfall");
+  const sources = getAllSources();
+  const [sourceId, setSourceId] = useState(sources[0]?.id ?? "");
   const [cardList, setCardList] = useState("");
   const [step, setStep] = useState<Step>("input");
   const [progress, setProgress] = useState({ current: 0, total: 0, name: "" });
   const [results, setResults] = useState<FetchResult[]>([]);
 
+  const source = getSource(sourceId);
+
   const handleLoad = async () => {
-    if (source === "mtg-scryfall") {
-      const parsed = parseCardList(cardList);
-      if (parsed.length === 0) return;
+    if (!source) return;
 
-      setStep("loading");
-      setProgress({ current: 0, total: parsed.length, name: "" });
+    const parsed = source.parse(cardList);
+    if (parsed.length === 0) return;
 
-      const fetched = await fetchCardsFromScryfall(parsed, addImage, (current, total, name) => {
-        setProgress({ current, total, name });
-      });
+    setStep("loading");
+    setProgress({ current: 0, total: parsed.length, name: "" });
 
-      setResults(fetched);
-      setStep("results");
-    } else if (source === "ygo-ygoprodeck") {
-      const parsed = parseYGOCardList(cardList);
-      if (parsed.length === 0) return;
+    const fetched = await source.fetch(parsed, addImage, (current, total, name) => {
+      setProgress({ current, total, name });
+    });
 
-      setStep("loading");
-      setProgress({ current: 0, total: parsed.length, name: "" });
-
-      const fetched = await fetchCardsFromYGO(parsed, addImage, (current, total, name) => {
-        setProgress({ current, total, name });
-      });
-
-      setResults(fetched);
-      setStep("results");
-    } else {
-      const parsed = parsePokemonCardList(cardList);
-      if (parsed.length === 0) return;
-
-      setStep("loading");
-      setProgress({ current: 0, total: parsed.length, name: "" });
-
-      const fetched = await fetchCardsFromPokemonTCG(parsed, addImage, (current, total, name) => {
-        setProgress({ current, total, name });
-      });
-
-      setResults(fetched);
-      setStep("results");
-    }
+    setResults(fetched);
+    setStep("results");
   };
 
   const handleImport = () => {
@@ -154,12 +132,7 @@ export function ImportCardsModal({ onImport, onClose }: ImportCardsModalProps) {
     );
   }
 
-  const parsedCount =
-    source === "mtg-scryfall"
-      ? parseCardList(cardList).length
-      : source === "ygo-ygoprodeck"
-        ? parseYGOCardList(cardList).length
-        : parsePokemonCardList(cardList).length;
+  const parsedCount = source?.parse(cardList).length ?? 0;
 
   const footer = (
     <>
@@ -170,78 +143,60 @@ export function ImportCardsModal({ onImport, onClose }: ImportCardsModalProps) {
     </>
   );
 
-  const placeholder =
-    source === "mtg-scryfall"
-      ? "1 Mana Vault\n2x Counterspell\n1 Sol Ring"
-      : source === "ygo-ygoprodeck"
-        ? "3 Dark Magician\n2x Blue-Eyes White Dragon\n1 Exodia the Forbidden One"
-        : "4 Pikachu\n2x Charizard\n1 Mewtwo";
-
-  const helpText =
-    source === "mtg-scryfall"
-      ? "Enter one card per line. Format: COUNT NAME or COUNTx NAME"
-      : source === "ygo-ygoprodeck"
-        ? "Enter one card per line. Format: COUNT NAME or COUNTx NAME. Also supports YDK format (card IDs)."
-        : "Enter one card per line. Format: COUNT NAME or COUNTx NAME";
-
-  const corsWarning = source === "ygo-ygoprodeck" && (
-    <div
-      style={{
-        background: "rgba(255, 200, 50, 0.15)",
-        border: "1px solid rgba(255, 200, 50, 0.4)",
-        borderRadius: "4px",
-        padding: "0.75rem",
-        marginBottom: "1rem",
-        fontSize: "0.9em",
-      }}
-    >
-      <strong style={{ color: "rgb(255, 200, 50)" }}>⚠ CORS Required</strong>
-      <p style={{ marginTop: "0.25rem" }}>
-        YGOPRODeck doesn't support browser requests. You must disable CORS in your browser.
-      </p>
-      <p style={{ marginTop: "0.5rem" }}>
-        Firefox:{" "}
-        <a
-          href="https://addons.mozilla.org/en-US/firefox/addon/cors-everywhere/"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: "var(--accent)" }}
-        >
-          CORS Everywhere
-        </a>
-        {" | "}
-        Chrome:{" "}
-        <a
-          href="https://chromewebstore.google.com/detail/allow-cors-access-control/lhobafahddgcelffkeicbaginigeejlf"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: "var(--accent)" }}
-        >
-          Allow CORS
-        </a>
-      </p>
-    </div>
-  );
-
   return (
     <Modal title="Import Cards" onClose={onClose} footer={footer}>
       <label>
         <span>Source</span>
-        <select value={source} onChange={(e) => setSource(e.target.value as ImportSource)}>
-          <option value="mtg-scryfall">MTG - Scryfall</option>
-          <option value="ygo-ygoprodeck">Yu-Gi-Oh - YGOPRODeck</option>
-          <option value="pokemon-pokemontcg">Pokémon - TCGdex</option>
+        <select value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
+          {sources.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
         </select>
       </label>
 
-      {corsWarning}
+      {source?.corsWarning && (
+        <div
+          style={{
+            background: "rgba(255, 200, 50, 0.15)",
+            border: "1px solid rgba(255, 200, 50, 0.4)",
+            borderRadius: "4px",
+            padding: "0.75rem",
+            marginTop: "1rem",
+            fontSize: "0.9em",
+          }}
+        >
+          <strong style={{ color: "rgb(255, 200, 50)" }}>⚠ CORS Required</strong>
+          <p style={{ marginTop: "0.25rem" }}>{source.corsWarning}</p>
+          <p style={{ marginTop: "0.5rem" }}>
+            <a
+              href="https://addons.mozilla.org/en-US/firefox/addon/cors-everywhere/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "var(--accent)" }}
+            >
+              Firefox
+            </a>
+            {" | "}
+            <a
+              href="https://chromewebstore.google.com/detail/allow-cors-access-control/lhobafahddgcelffkeicbaginigeejlf"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "var(--accent)" }}
+            >
+              Chrome
+            </a>
+          </p>
+        </div>
+      )}
 
       <label style={{ marginTop: "1rem", display: "block" }}>
         <span>Card List</span>
         <textarea
           value={cardList}
           onChange={(e) => setCardList(e.target.value)}
-          placeholder={placeholder}
+          placeholder={source?.placeholder}
           rows={10}
           style={{
             width: "100%",
@@ -257,7 +212,7 @@ export function ImportCardsModal({ onImport, onClose }: ImportCardsModalProps) {
       </label>
 
       <p className="muted" style={{ marginTop: "0.5rem", fontSize: "0.9em" }}>
-        {helpText}
+        Enter one card per line. Format: COUNT NAME or COUNTx NAME
       </p>
     </Modal>
   );

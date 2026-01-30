@@ -1,3 +1,5 @@
+import { registerSource, type ParsedCard } from "@/sources/index";
+
 export interface ScryfallCard {
   name: string;
   image_uris?: {
@@ -17,18 +19,6 @@ export interface ScryfallCard {
   }[];
 }
 
-export interface ParsedCardLine {
-  count: number;
-  name: string;
-}
-
-export interface FetchedCard {
-  name: string;
-  count: number;
-  imageId: string;
-  error?: string;
-}
-
 export interface FetchResult {
   name: string;
   count: number;
@@ -43,12 +33,12 @@ export interface FetchResult {
  * - "2x Counterspell"
  * - "1x Sol Ring (UMA)"
  */
-export function parseCardList(text: string): ParsedCardLine[] {
+export function parseCardList(text: string): ParsedCard[] {
   const lines = text
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
-  const cards: ParsedCardLine[] = [];
+  const cards: ParsedCard[] = [];
 
   for (const line of lines) {
     // Skip comments
@@ -139,7 +129,7 @@ export async function downloadImageAsDataUrl(url: string): Promise<string> {
  * Images are stored via storeImage as they're fetched, so import is instant.
  */
 export async function fetchCardsFromScryfall(
-  cards: ParsedCardLine[],
+  cards: ParsedCard[],
   storeImage: (name: string, data: string) => string,
   onProgress?: (current: number, total: number, name: string) => void
 ): Promise<FetchResult[]> {
@@ -147,7 +137,7 @@ export async function fetchCardsFromScryfall(
 
   for (let i = 0; i < cards.length; i++) {
     const card = cards[i];
-    if (!card) continue;
+    if (!card?.name) continue;
 
     onProgress?.(i + 1, cards.length, card.name);
 
@@ -190,3 +180,11 @@ export async function fetchCardsFromScryfall(
 
   return results;
 }
+
+registerSource({
+  id: "mtg-scryfall",
+  name: "Magic: The Gathering (Scryfall)",
+  placeholder: "1 Mana Vault\n2x Counterspell\nSol Ring",
+  parse: parseCardList,
+  fetch: fetchCardsFromScryfall,
+});

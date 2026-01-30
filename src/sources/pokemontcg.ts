@@ -1,21 +1,10 @@
-export interface PokemonCard {
+import { registerSource, type ParsedCard, type FetchResult } from "@/sources/index";
+
+interface PokemonCard {
   id: string;
   localId: string;
   name: string;
   image?: string;
-}
-
-export interface ParsedPokemonCardLine {
-  count: number;
-  name: string;
-}
-
-export interface FetchResult {
-  name: string;
-  count: number;
-  imageId?: string;
-  imageData?: string;
-  error?: string;
 }
 
 /**
@@ -23,12 +12,12 @@ export interface FetchResult {
  * - "3 Pikachu"
  * - "2x Charizard"
  */
-export function parsePokemonCardList(text: string): ParsedPokemonCardLine[] {
+export function parsePokemonCardList(text: string): ParsedCard[] {
   const lines = text
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
-  const cards: ParsedPokemonCardLine[] = [];
+  const cards: ParsedCard[] = [];
 
   for (const line of lines) {
     // Skip comments and section headers
@@ -110,7 +99,7 @@ async function fetchCardImage(imageUrl: string): Promise<string> {
  * Fetch multiple cards from TCGdex API with rate limiting
  */
 export async function fetchCardsFromPokemonTCG(
-  cards: ParsedPokemonCardLine[],
+  cards: ParsedCard[],
   addImage: (name: string, data: string) => string,
   onProgress?: (current: number, total: number, name: string) => void
 ): Promise<FetchResult[]> {
@@ -118,7 +107,7 @@ export async function fetchCardsFromPokemonTCG(
 
   for (let i = 0; i < cards.length; i++) {
     const card = cards[i];
-    if (!card) continue;
+    if (!card?.name) continue;
 
     onProgress?.(i + 1, cards.length, card.name);
 
@@ -166,3 +155,11 @@ export async function fetchCardsFromPokemonTCG(
 
   return results;
 }
+
+registerSource({
+  id: "pokemon-tcgdex",
+  name: "Pokémon TCG (TCGdex)",
+  placeholder: "3 Pikachu\n2x Charizard\nMewtwo",
+  parse: parsePokemonCardList,
+  fetch: fetchCardsFromPokemonTCG,
+});

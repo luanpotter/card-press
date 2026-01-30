@@ -3,9 +3,10 @@ import { Modal } from "@/app/components/Modal";
 import { useImageStore } from "@/app/store/images";
 import { parseCardList, fetchCardsFromScryfall, type FetchResult } from "@/sources/scryfall";
 import { parseYGOCardList, fetchCardsFromYGO } from "@/sources/ygoprodeck";
+import { parsePokemonCardList, fetchCardsFromPokemonTCG } from "@/sources/pokemontcg";
 import { useState } from "react";
 
-type ImportSource = "mtg-scryfall" | "ygo-ygoprodeck";
+type ImportSource = "mtg-scryfall" | "ygo-ygoprodeck" | "pokemon-pokemontcg";
 
 interface ImportCardsModalProps {
   onImport: (cards: FetchResult[]) => void;
@@ -36,7 +37,7 @@ export function ImportCardsModal({ onImport, onClose }: ImportCardsModalProps) {
 
       setResults(fetched);
       setStep("results");
-    } else {
+    } else if (source === "ygo-ygoprodeck") {
       const parsed = parseYGOCardList(cardList);
       if (parsed.length === 0) return;
 
@@ -44,6 +45,19 @@ export function ImportCardsModal({ onImport, onClose }: ImportCardsModalProps) {
       setProgress({ current: 0, total: parsed.length, name: "" });
 
       const fetched = await fetchCardsFromYGO(parsed, addImage, (current, total, name) => {
+        setProgress({ current, total, name });
+      });
+
+      setResults(fetched);
+      setStep("results");
+    } else {
+      const parsed = parsePokemonCardList(cardList);
+      if (parsed.length === 0) return;
+
+      setStep("loading");
+      setProgress({ current: 0, total: parsed.length, name: "" });
+
+      const fetched = await fetchCardsFromPokemonTCG(parsed, addImage, (current, total, name) => {
         setProgress({ current, total, name });
       });
 
@@ -140,7 +154,12 @@ export function ImportCardsModal({ onImport, onClose }: ImportCardsModalProps) {
     );
   }
 
-  const parsedCount = source === "mtg-scryfall" ? parseCardList(cardList).length : parseYGOCardList(cardList).length;
+  const parsedCount =
+    source === "mtg-scryfall"
+      ? parseCardList(cardList).length
+      : source === "ygo-ygoprodeck"
+        ? parseYGOCardList(cardList).length
+        : parsePokemonCardList(cardList).length;
 
   const footer = (
     <>
@@ -154,12 +173,16 @@ export function ImportCardsModal({ onImport, onClose }: ImportCardsModalProps) {
   const placeholder =
     source === "mtg-scryfall"
       ? "1 Mana Vault\n2x Counterspell\n1 Sol Ring"
-      : "3 Dark Magician\n2x Blue-Eyes White Dragon\n1 Exodia the Forbidden One";
+      : source === "ygo-ygoprodeck"
+        ? "3 Dark Magician\n2x Blue-Eyes White Dragon\n1 Exodia the Forbidden One"
+        : "4 Pikachu\n2x Charizard\n1 Mewtwo";
 
   const helpText =
     source === "mtg-scryfall"
       ? "Enter one card per line. Format: COUNT NAME or COUNTx NAME"
-      : "Enter one card per line. Format: COUNT NAME or COUNTx NAME. Also supports YDK format (card IDs).";
+      : source === "ygo-ygoprodeck"
+        ? "Enter one card per line. Format: COUNT NAME or COUNTx NAME. Also supports YDK format (card IDs)."
+        : "Enter one card per line. Format: COUNT NAME or COUNTx NAME";
 
   const corsWarning = source === "ygo-ygoprodeck" && (
     <div
@@ -207,6 +230,7 @@ export function ImportCardsModal({ onImport, onClose }: ImportCardsModalProps) {
         <select value={source} onChange={(e) => setSource(e.target.value as ImportSource)}>
           <option value="mtg-scryfall">MTG - Scryfall</option>
           <option value="ygo-ygoprodeck">Yu-Gi-Oh - YGOPRODeck</option>
+          <option value="pokemon-pokemontcg">Pokémon - TCGdex</option>
         </select>
       </label>
 

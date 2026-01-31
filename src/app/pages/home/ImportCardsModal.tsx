@@ -225,7 +225,6 @@ export function ImportCardsModal({ onImport, onClose }: ImportCardsModalProps) {
           rows={10}
           style={{
             width: "100%",
-            fontFamily: "monospace",
             fontSize: "1em",
             background: "#000",
             color: "var(--text)",

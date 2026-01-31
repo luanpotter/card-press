@@ -4,6 +4,7 @@
   --accent: #e07020;
   --danger: #c04040;
   --border: #666;
+  --font: monospace;
 }
 
 * {
@@ -21,7 +22,7 @@ body {
 body {
   background-color: #000;
   color: var(--text);
-  font-family: monospace;
+  font-family: var(--font);
   line-height: 1.4;
   display: flex;
   justify-content: center;
@@ -68,8 +69,9 @@ main {
 /* Form elements */
 input,
 select,
-button {
-  font-family: monospace;
+button,
+textarea {
+  font-family: inherit;
   font-size: 1em;
   background: #000;
   color: var(--text);
@@ -83,7 +85,7 @@ input[type="file"] {
 }
 
 input[type="file"]::file-selector-button {
-  font-family: monospace;
+  font-family: inherit;
   font-size: 1em;
   background: var(--bg);
   color: var(--text);

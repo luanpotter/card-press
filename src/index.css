@@ -101,8 +101,13 @@ input[type="file"]::file-selector-button:hover {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
+}
+
+textarea {
+  resize: vertical;
 }
 
 input:focus,

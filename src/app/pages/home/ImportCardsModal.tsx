@@ -223,15 +223,6 @@ export function ImportCardsModal({ onImport, onClose }: ImportCardsModalProps) {
           onChange={(e) => setCardList(e.target.value)}
           placeholder={source?.placeholder}
           rows={10}
-          style={{
-            width: "100%",
-            fontSize: "1em",
-            background: "#000",
-            color: "var(--text)",
-            border: "1px solid var(--border)",
-            padding: "8px",
-            resize: "vertical",
-          }}
         />
       </label>
 

@@ -8,6 +8,7 @@ import { useState } from "react";
 import "@/sources/scryfall";
 import "@/sources/ygoprodeck";
 import "@/sources/pokemontcg";
+import "@/sources/dimrift";
 
 interface ImportCardsModalProps {
   onImport: (cards: FetchResult[]) => void;

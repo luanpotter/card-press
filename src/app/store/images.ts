@@ -13,7 +13,7 @@ interface ImageState {
   images: StoredImage[];
   _hydrated: boolean;
   _setHydrated: () => void;
-  addImage: (name: string, data: string) => string;
+  addImage: (name: string, data: string, id?: string) => string;
   deleteImage: (id: string) => void;
   getImage: (id: string) => StoredImage | undefined;
   pruneImages: (usedIds: Set<string>) => number;
@@ -25,7 +25,7 @@ export const useImageStore = create<ImageState>()(
       images: [],
       _hydrated: false,
       _setHydrated: () => set({ _hydrated: true }),
-      addImage: (name, data) => {
+      addImage: (name, data, id?) => {
         const hash = hashData(data);
         const { images } = get();
 
@@ -37,11 +37,11 @@ export const useImageStore = create<ImageState>()(
         const existingNames = new Set(images.map((img) => img.name));
         const uniqueName = getUniqueName(name, existingNames);
 
-        const id = crypto.randomUUID();
+        const newId = id ?? crypto.randomUUID();
         set((state) => ({
-          images: [...state.images, { id, name: uniqueName, data, hash }],
+          images: [...state.images, { id: newId, name: uniqueName, data, hash }],
         }));
-        return id;
+        return newId;
       },
       deleteImage: (id) =>
         set((state) => ({

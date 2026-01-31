@@ -62,10 +62,34 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
 /**
  * Detect image type from data URL
  */
-function getImageType(dataUrl: string): "png" | "jpeg" | null {
+function getImageType(dataUrl: string): "png" | "jpeg" | "webp" | null {
   if (dataUrl.startsWith("data:image/png")) return "png";
   if (dataUrl.startsWith("data:image/jpeg") || dataUrl.startsWith("data:image/jpg")) return "jpeg";
+  if (dataUrl.startsWith("data:image/webp")) return "webp";
   return null;
+}
+
+/**
+ * Convert a WebP image to PNG using canvas
+ */
+async function convertWebpToPng(webpDataUrl: string): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Failed to get canvas context"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = webpDataUrl;
+  });
 }
 
 /**
@@ -80,13 +104,20 @@ async function drawCardOnPage(
   pageHeight: number,
   imageData: string
 ): Promise<void> {
-  const imageType = getImageType(imageData);
+  let imageType = getImageType(imageData);
   if (!imageType) {
     // Unsupported image type, skip silently
     return;
   }
 
-  const imageBytes = dataUrlToBytes(imageData);
+  // Convert WebP to PNG since pdf-lib doesn't support WebP
+  let finalImageData = imageData;
+  if (imageType === "webp") {
+    finalImageData = await convertWebpToPng(imageData);
+    imageType = "png";
+  }
+
+  const imageBytes = dataUrlToBytes(finalImageData);
   const image = imageType === "png" ? await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
 
   // Convert mm to points

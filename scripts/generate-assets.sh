@@ -36,4 +36,31 @@ for pdf in "$ASSETS_DIR"/*.pdf; do
     info "  Bundled: $filename"
 done
 
+# Process card backs
+echo "export const CARD_BACKS: { id: string; name: string; data: string }[] = [" >>"$OUTPUT_FILE"
+
+for img in "$ASSETS_DIR"/card-backs/*.{jpg,png}; do
+    [[ -e "$img" ]] || continue
+
+    filename=$(basename "$img")
+    name="${filename%.*}"
+    ext="${filename##*.}"
+
+    # Determine mime type
+    if [[ "$ext" == "png" ]]; then
+        mime="image/png"
+    else
+        mime="image/jpeg"
+    fi
+
+    base64_data=$(base64 -w 0 "$img" 2>/dev/null || base64 -i "$img" | tr -d '\n')
+
+    echo "  { id: \"default-$name\", name: \"$name\", data: \"data:$mime;base64,$base64_data\" }," >>"$OUTPUT_FILE"
+
+    info "  Bundled: card-backs/$filename"
+done
+
+echo "];" >>"$OUTPUT_FILE"
+echo "" >>"$OUTPUT_FILE"
+
 success "Generated $OUTPUT_FILE"

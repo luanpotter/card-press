@@ -2,16 +2,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/app/components/Button";
 import { Modal } from "@/app/components/Modal";
 import { useImageStore } from "@/app/store/images";
+import { CARD_BACKS } from "@/generated/assets";
 
 interface ImagePickerModalProps {
   onSelect: (imageId: string) => void;
   onClose: () => void;
 }
 
-type Tab = "upload" | "storage";
+type Tab = "upload" | "storage" | "defaults";
 
 export function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
-  const { images, addImage } = useImageStore();
+  const { images, addImage, getImage } = useImageStore();
   const [tab, setTab] = useState<Tab>("upload");
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,6 +81,18 @@ export function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
     onSelect(imageId);
   };
 
+  const handleSelectDefault = (defaultBack: (typeof CARD_BACKS)[number]) => {
+    // Check if already in storage
+    const existing = getImage(defaultBack.id);
+    if (existing) {
+      onSelect(existing.id);
+    } else {
+      // Add to storage and select
+      const imageId = addImage(defaultBack.name, defaultBack.data, defaultBack.id);
+      onSelect(imageId);
+    }
+  };
+
   const tabs = (
     <menu className="inline">
       <a
@@ -101,6 +114,16 @@ export function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
         }}
       >
         <span>From Storage ({images.length})</span>
+      </a>
+      <a
+        href="#"
+        className={tab === "defaults" ? "active" : ""}
+        onClick={(e) => {
+          e.preventDefault();
+          setTab("defaults");
+        }}
+      >
+        <span>Defaults</span>
       </a>
     </menu>
   );
@@ -141,6 +164,23 @@ export function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
                 title={img.name}
               >
                 <img src={img.data} alt={img.name} />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Defaults tab */}
+        {tab === "defaults" && (
+          <div className="image-picker-grid">
+            {CARD_BACKS.map((back) => (
+              <button
+                key={back.id}
+                type="button"
+                className="image-picker-item"
+                onClick={() => handleSelectDefault(back)}
+                title={back.name}
+              >
+                <img src={back.data} alt={back.name} />
               </button>
             ))}
           </div>

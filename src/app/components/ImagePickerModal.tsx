@@ -107,43 +107,45 @@ export function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
 
   return (
     <Modal title={tabs} onClose={onClose}>
-      {/* Upload tab */}
-      {tab === "upload" && (
-        <div
-          className={`image-picker-dropzone ${isDragging ? "dragging" : ""}`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <p>Drop or paste image here</p>
-          <p className="muted">or</p>
-          <Button onClick={() => fileInputRef.current?.click()}>Choose File</Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={handleFileInput}
-            hidden
-          />
-        </div>
-      )}
+      <div className="image-picker-content">
+        {/* Upload tab */}
+        {tab === "upload" && (
+          <div
+            className={`image-picker-dropzone ${isDragging ? "dragging" : ""}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <p>Drop or paste image here</p>
+            <p className="muted">or</p>
+            <Button onClick={() => fileInputRef.current?.click()}>Choose File</Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={handleFileInput}
+              hidden
+            />
+          </div>
+        )}
 
-      {/* Storage tab */}
-      {tab === "storage" && (
-        <div className="image-picker-grid">
-          {images.map((img) => (
-            <button
-              key={img.id}
-              type="button"
-              className="image-picker-item"
-              onClick={() => handleSelectFromStorage(img.id)}
-              title={img.name}
-            >
-              <img src={img.data} alt={img.name} />
-            </button>
-          ))}
-        </div>
-      )}
+        {/* Storage tab */}
+        {tab === "storage" && (
+          <div className="image-picker-grid">
+            {images.map((img) => (
+              <button
+                key={img.id}
+                type="button"
+                className="image-picker-item"
+                onClick={() => handleSelectFromStorage(img.id)}
+                title={img.name}
+              >
+                <img src={img.data} alt={img.name} />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </Modal>
   );
 }

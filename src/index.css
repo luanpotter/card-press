@@ -558,11 +558,16 @@ menu.inline > a.disabled {
   cursor: not-allowed;
 }
 
+.image-picker-content {
+  height: 300px;
+}
+
 .image-picker-dropzone {
   border: 2px dashed var(--border);
   padding: 2rem;
   text-align: center;
-  min-height: 150px;
+  height: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -583,7 +588,7 @@ menu.inline > a.disabled {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
   gap: 8px;
-  max-height: 300px;
+  height: 100%;
   overflow-y: auto;
 }
 

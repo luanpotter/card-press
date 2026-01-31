@@ -125,12 +125,15 @@ export function Home() {
   // Handle drag and drop for image files
   useEffect(() => {
     const handleDragEnter = (e: DragEvent) => {
+      // Only show overlay for external file drags, not internal element drags
+      if (!e.dataTransfer?.types.includes("Files")) return;
       e.preventDefault();
       e.stopPropagation();
       setIsDraggingOver(true);
     };
 
     const handleDragOver = (e: DragEvent) => {
+      if (!e.dataTransfer?.types.includes("Files")) return;
       e.preventDefault();
       e.stopPropagation();
     };
@@ -145,12 +148,13 @@ export function Home() {
     };
 
     const handleDrop = (e: DragEvent) => {
+      if (!e.dataTransfer?.types.includes("Files")) return;
       e.preventDefault();
       e.stopPropagation();
       setIsDraggingOver(false);
 
-      const files = e.dataTransfer?.files;
-      if (!files || files.length === 0) return;
+      const files = e.dataTransfer.files;
+      if (files.length === 0) return;
 
       // Filter to only image files
       const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));

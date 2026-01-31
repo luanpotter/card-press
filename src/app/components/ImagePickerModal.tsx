@@ -4,14 +4,13 @@ import { Modal } from "@/app/components/Modal";
 import { useImageStore } from "@/app/store/images";
 
 interface ImagePickerModalProps {
-  title?: string;
   onSelect: (imageId: string) => void;
   onClose: () => void;
 }
 
 type Tab = "upload" | "storage";
 
-export function ImagePickerModal({ title = "Select Image", onSelect, onClose }: ImagePickerModalProps) {
+export function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
   const { images, addImage } = useImageStore();
   const [tab, setTab] = useState<Tab>("upload");
   const [isDragging, setIsDragging] = useState(false);
@@ -81,23 +80,33 @@ export function ImagePickerModal({ title = "Select Image", onSelect, onClose }: 
     onSelect(imageId);
   };
 
-  return (
-    <Modal title={title} onClose={onClose}>
-      {/* Tabs */}
-      <div className="image-picker-tabs">
-        <button type="button" className={tab === "upload" ? "active" : ""} onClick={() => setTab("upload")}>
-          Upload
-        </button>
-        <button
-          type="button"
-          className={tab === "storage" ? "active" : ""}
-          onClick={() => setTab("storage")}
-          disabled={images.length === 0}
-        >
-          From Storage ({images.length})
-        </button>
-      </div>
+  const tabs = (
+    <menu className="inline">
+      <a
+        href="#"
+        className={tab === "upload" ? "active" : ""}
+        onClick={(e) => {
+          e.preventDefault();
+          setTab("upload");
+        }}
+      >
+        <span>Upload</span>
+      </a>
+      <a
+        href="#"
+        className={tab === "storage" ? "active" : images.length === 0 ? "disabled" : ""}
+        onClick={(e) => {
+          e.preventDefault();
+          if (images.length > 0) setTab("storage");
+        }}
+      >
+        <span>From Storage ({images.length})</span>
+      </a>
+    </menu>
+  );
 
+  return (
+    <Modal title={tabs} onClose={onClose}>
       {/* Upload tab */}
       {tab === "upload" && (
         <div

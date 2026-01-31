@@ -549,34 +549,11 @@ label.toggle {
 }
 
 /* Image Picker Modal */
-.image-picker-tabs {
-  display: flex;
-  gap: 0;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid var(--border);
+menu.inline {
+  margin: 0;
 }
 
-.image-picker-tabs button {
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--text);
-  padding: 8px 16px;
-  cursor: pointer;
-  font-family: monospace;
-  font-size: 1em;
-}
-
-.image-picker-tabs button:hover:not(:disabled) {
-  color: var(--accent);
-}
-
-.image-picker-tabs button.active {
-  border-bottom-color: var(--accent);
-  color: var(--accent);
-}
-
-.image-picker-tabs button:disabled {
+menu.inline > a.disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

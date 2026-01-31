@@ -41,13 +41,7 @@ export function CardBacksModal({ session, onClose }: CardBacksModalProps) {
   );
 
   if (showPicker) {
-    return (
-      <ImagePickerModal
-        title="Select Default Back Image"
-        onSelect={handleSelectBack}
-        onClose={() => setShowPicker(false)}
-      />
-    );
+    return <ImagePickerModal onSelect={handleSelectBack} onClose={() => setShowPicker(false)} />;
   }
 
   return (

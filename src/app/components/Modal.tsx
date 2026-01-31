@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 interface ModalProps {
-  title: string;
+  title: React.ReactNode;
   onClose: () => void;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -20,7 +20,7 @@ export function Modal({ title, onClose, children, footer }: ModalProps) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>{title}</h2>
+          {typeof title === "string" ? <h2>{title}</h2> : title}
           <button type="button" onClick={onClose}>
             x
           </button>

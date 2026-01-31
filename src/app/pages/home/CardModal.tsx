@@ -72,15 +72,11 @@ export function CardModal({ card, cardBacksEnabled, defaultCardBackId, onSave, o
   );
 
   if (pickerMode === "image") {
-    return (
-      <ImagePickerModal title="Select Card Image" onSelect={handleImageSelect} onClose={() => setPickerMode(null)} />
-    );
+    return <ImagePickerModal onSelect={handleImageSelect} onClose={() => setPickerMode(null)} />;
   }
 
   if (pickerMode === "back") {
-    return (
-      <ImagePickerModal title="Select Card Back" onSelect={handleBackSelect} onClose={() => setPickerMode(null)} />
-    );
+    return <ImagePickerModal onSelect={handleBackSelect} onClose={() => setPickerMode(null)} />;
   }
 
   return (

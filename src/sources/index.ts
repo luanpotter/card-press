@@ -17,7 +17,8 @@ export interface CardSource {
   fetch: (
     cards: ParsedCard[],
     storeImage: (name: string, data: string) => string,
-    onProgress?: (current: number, total: number, name: string) => void
+    onProgress?: (current: number, total: number, name: string) => void,
+    signal?: AbortSignal
   ) => Promise<FetchResult[]>;
 }
 

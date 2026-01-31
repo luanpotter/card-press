@@ -1,11 +1,14 @@
+import { Button } from "@/app/components/Button";
+
 interface ProgressModalProps {
   title: string;
   current: number;
   total: number;
   label?: string;
+  onCancel?: () => void;
 }
 
-export function ProgressModal({ title, current, total, label }: ProgressModalProps) {
+export function ProgressModal({ title, current, total, label, onCancel }: ProgressModalProps) {
   const percent = total > 0 ? (current / total) * 100 : 0;
 
   return (
@@ -42,6 +45,11 @@ export function ProgressModal({ title, current, total, label }: ProgressModalPro
                 }}
               />
             </div>
+            {onCancel && (
+              <div style={{ marginTop: "1.5rem" }}>
+                <Button onClick={onCancel}>Cancel</Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { Template } from "@/types/template";
 import type { Card, Session } from "@/types/session";
 import { generatePdf, downloadPdf } from "@/utils/generatePdf";
@@ -41,6 +41,7 @@ interface UsePdfGeneratorResult {
   handleGenerateBacks: () => void;
   clearPreview: () => void;
   clearError: () => void;
+  cancelGeneration: () => void;
 }
 
 export function usePdfGenerator({
@@ -56,8 +57,14 @@ export function usePdfGenerator({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [pdfProgress, setPdfProgress] = useState<PdfProgress>({ current: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const clearError = useCallback(() => setError(null), []);
+
+  const cancelGeneration = useCallback(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+  }, []);
 
   const clearPreview = useCallback(() => {
     if (previewUrl) {
@@ -77,6 +84,12 @@ export function usePdfGenerator({
 
   const handlePreview = useCallback(() => {
     if (!template || cards.length === 0) return;
+
+    // Cancel any existing generation
+    abortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     setPreviewing(true);
     setPdfProgress({ current: 0, total: 0 });
 
@@ -90,6 +103,7 @@ export function usePdfGenerator({
             getImage,
             getPdf,
             onProgress: (current, total) => setPdfProgress({ current, total }),
+            signal: abortController.signal,
           });
 
           // Revoke old URL if exists
@@ -101,9 +115,14 @@ export function usePdfGenerator({
           const url = URL.createObjectURL(blob);
           setPreviewUrl(url);
         } catch (err) {
+          // Don't show error for cancellation
+          if (err instanceof DOMException && err.name === "AbortError") {
+            return;
+          }
           setError(err instanceof Error ? err.message : "Failed to generate preview");
         } finally {
           setPreviewing(false);
+          abortControllerRef.current = null;
         }
       })();
     }, 0);
@@ -111,6 +130,12 @@ export function usePdfGenerator({
 
   const handleGenerate = useCallback(() => {
     if (!template || cards.length === 0) return;
+
+    // Cancel any existing generation
+    abortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     setGenerating(true);
     setPdfProgress({ current: 0, total: 0 });
 
@@ -124,13 +149,19 @@ export function usePdfGenerator({
             getPdf,
             defaultCardBackId: session.defaultCardBackId,
             onProgress: (current, total) => setPdfProgress({ current, total }),
+            signal: abortController.signal,
           });
 
           downloadPdf(pdfBytes, `${session.name || "cards"}.pdf`);
         } catch (err) {
+          // Don't show error for cancellation
+          if (err instanceof DOMException && err.name === "AbortError") {
+            return;
+          }
           setError(err instanceof Error ? err.message : "Failed to generate PDF");
         } finally {
           setGenerating(false);
+          abortControllerRef.current = null;
         }
       })();
     }, 0);
@@ -138,6 +169,12 @@ export function usePdfGenerator({
 
   const handleGenerateBacks = useCallback(() => {
     if (!template || cards.length === 0) return;
+
+    // Cancel any existing generation
+    abortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     setGeneratingBacks(true);
     setPdfProgress({ current: 0, total: 0 });
 
@@ -152,13 +189,19 @@ export function usePdfGenerator({
             defaultCardBackId: session.defaultCardBackId,
             generateBacks: true,
             onProgress: (current, total) => setPdfProgress({ current, total }),
+            signal: abortController.signal,
           });
 
           downloadPdf(pdfBytes, `${session.name || "cards"}-backs.pdf`);
         } catch (err) {
+          // Don't show error for cancellation
+          if (err instanceof DOMException && err.name === "AbortError") {
+            return;
+          }
           setError(err instanceof Error ? err.message : "Failed to generate backs PDF");
         } finally {
           setGeneratingBacks(false);
+          abortControllerRef.current = null;
         }
       })();
     }, 0);
@@ -176,5 +219,6 @@ export function usePdfGenerator({
     handleGenerateBacks,
     clearPreview,
     clearError,
+    cancelGeneration,
   };
 }

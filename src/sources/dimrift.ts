@@ -308,7 +308,8 @@ async function downloadImageAsDataUrl(url: string): Promise<string> {
 export async function fetchCardsFromDimRift(
   parsedCards: ParsedCard[],
   storeImage: (name: string, data: string) => string,
-  onProgress?: (current: number, total: number, name: string) => void
+  onProgress?: (current: number, total: number, name: string) => void,
+  signal?: AbortSignal
 ): Promise<FetchResult[]> {
   // Fetch all card data first
   const allCards = await fetchAllCards();
@@ -370,6 +371,11 @@ export async function fetchCardsFromDimRift(
 
   // Fetch images for each unique card
   for (let i = 0; i < uniqueCards.length; i++) {
+    // Check for cancellation
+    if (signal?.aborted) {
+      break;
+    }
+
     const entry = uniqueCards[i];
     if (!entry) continue;
 

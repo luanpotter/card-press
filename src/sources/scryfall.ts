@@ -131,11 +131,17 @@ export async function downloadImageAsDataUrl(url: string): Promise<string> {
 export async function fetchCardsFromScryfall(
   cards: ParsedCard[],
   storeImage: (name: string, data: string) => string,
-  onProgress?: (current: number, total: number, name: string) => void
+  onProgress?: (current: number, total: number, name: string) => void,
+  signal?: AbortSignal
 ): Promise<FetchResult[]> {
   const results: FetchResult[] = [];
 
   for (let i = 0; i < cards.length; i++) {
+    // Check for cancellation
+    if (signal?.aborted) {
+      break;
+    }
+
     const card = cards[i];
     if (!card?.name) continue;
 

@@ -22,6 +22,7 @@ interface GeneratePdfOptions {
   getImage: (id: string) => StoredImage | undefined;
   getPdf: (id: string) => StoredPdf | undefined;
   onProgress?: (current: number, total: number) => void;
+  signal?: AbortSignal;
   // For generating backs PDF
   defaultCardBackId?: string | undefined;
   generateBacks?: boolean;
@@ -146,6 +147,7 @@ export async function generatePdf({
   getImage,
   getPdf,
   onProgress,
+  signal,
   defaultCardBackId,
   generateBacks = false,
 }: GeneratePdfOptions): Promise<Uint8Array> {
@@ -203,6 +205,11 @@ export async function generatePdf({
 
     // Place each card in its slot
     for (let slotIndex = 0; slotIndex < pageCards.length; slotIndex++) {
+      // Check for cancellation
+      if (signal?.aborted) {
+        throw new DOMException("PDF generation cancelled", "AbortError");
+      }
+
       const expandedCard = pageCards[slotIndex];
       const slot = template.slots[slotIndex];
 

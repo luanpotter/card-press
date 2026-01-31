@@ -215,6 +215,7 @@ export function Home() {
     handleGenerateBacks,
     clearPreview,
     clearError: clearPdfError,
+    cancelGeneration,
   } = usePdfGenerator({
     cards,
     session: activeSession ?? { id: "", name: "", templateId: "", cards: [], cardBacksEnabled: false },
@@ -531,6 +532,7 @@ export function Home() {
           current={pdfProgress.current}
           total={pdfProgress.total}
           label="Embedding cards..."
+          onCancel={cancelGeneration}
         />
       )}
 

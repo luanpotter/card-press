@@ -2,7 +2,7 @@ import { Button } from "@/app/components/Button";
 import { Modal } from "@/app/components/Modal";
 import { useImageStore } from "@/app/store/images";
 import { getAllSources, getSource, type FetchResult } from "@/sources/index";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 // Import sources to register them
 import "@/sources/scryfall";
@@ -25,6 +25,7 @@ export function ImportCardsModal({ onImport, onClose }: ImportCardsModalProps) {
   const [step, setStep] = useState<Step>("input");
   const [progress, setProgress] = useState({ current: 0, total: 0, name: "" });
   const [results, setResults] = useState<FetchResult[]>([]);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const source = getSource(sourceId);
 
@@ -34,15 +35,35 @@ export function ImportCardsModal({ onImport, onClose }: ImportCardsModalProps) {
     const parsed = source.parse(cardList);
     if (parsed.length === 0) return;
 
+    // Cancel any existing fetch
+    abortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     setStep("loading");
     setProgress({ current: 0, total: parsed.length, name: "" });
 
-    const fetched = await source.fetch(parsed, addImage, (current, total, name) => {
-      setProgress({ current, total, name });
-    });
+    const fetched = await source.fetch(
+      parsed,
+      addImage,
+      (current, total, name) => {
+        setProgress({ current, total, name });
+      },
+      abortController.signal
+    );
 
-    setResults(fetched);
-    setStep("results");
+    // Only show results if not cancelled
+    if (!abortController.signal.aborted) {
+      setResults(fetched);
+      setStep("results");
+    }
+    abortControllerRef.current = null;
+  };
+
+  const handleCancel = () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setStep("input");
   };
 
   const handleImport = () => {
@@ -80,6 +101,9 @@ export function ImportCardsModal({ onImport, onClose }: ImportCardsModalProps) {
                 transition: "width 0.2s",
               }}
             />
+          </div>
+          <div style={{ marginTop: "1.5rem" }}>
+            <Button onClick={handleCancel}>Cancel</Button>
           </div>
         </div>
       </Modal>

@@ -49,6 +49,7 @@ function getCardImageUrl(key: string): string {
  * Parse a bracket filter expression and return matching cards
  * All tokens within a bracket are ANDed together
  * Examples:
+ *   [all] - all cards in the pool
  *   [men] - all Men faction cards
  *   [men extra] - all Men AND extra deck cards
  *   [fey -artifacts] - all Fey cards AND NOT artifacts
@@ -125,6 +126,9 @@ function parseFilterExpression(expr: string, cards: DimRiftCard[]): DimRiftCard[
   return cards.filter((card) => {
     // Build card attributes for matching
     const attrs = new Set<string>();
+
+    // 'all' matches everything
+    attrs.add("all");
 
     // Type
     attrs.add(card.type.key);

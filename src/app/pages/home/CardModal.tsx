@@ -1,9 +1,10 @@
 import { Button } from "@/app/components/Button";
+import { ImagePickerModal } from "@/app/components/ImagePickerModal";
 import { Input } from "@/app/components/Input";
 import { Modal } from "@/app/components/Modal";
 import { useImageStore } from "@/app/store/images";
 import type { Card } from "@/types/session";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 interface CardModalProps {
   card: Card;
@@ -13,15 +14,16 @@ interface CardModalProps {
   onClose: () => void;
 }
 
+type PickerMode = "image" | "back" | null;
+
 export function CardModal({ card, cardBacksEnabled, defaultCardBackId, onSave, onClose }: CardModalProps) {
-  const { getImage, addImage } = useImageStore();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const backFileInputRef = useRef<HTMLInputElement>(null);
+  const { getImage } = useImageStore();
 
   const [name, setName] = useState(card.name);
   const [count, setCount] = useState(String(card.count));
   const [imageId, setImageId] = useState(card.imageId);
   const [cardBackId, setCardBackId] = useState<string | undefined>("cardBackId" in card ? card.cardBackId : undefined);
+  const [pickerMode, setPickerMode] = useState<PickerMode>(null);
 
   const [errors, setErrors] = useState<{
     name?: string;
@@ -50,32 +52,14 @@ export function CardModal({ card, cardBacksEnabled, defaultCardBackId, onSave, o
     onSave(updates);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const data = reader.result as string;
-      const newImageId = addImage(file.name, data);
-      setImageId(newImageId);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+  const handleImageSelect = (id: string) => {
+    setImageId(id);
+    setPickerMode(null);
   };
 
-  const handleBackFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const data = reader.result as string;
-      const newImageId = addImage(file.name, data);
-      setCardBackId(newImageId);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+  const handleBackSelect = (id: string) => {
+    setCardBackId(id);
+    setPickerMode(null);
   };
 
   const footer = (
@@ -87,6 +71,18 @@ export function CardModal({ card, cardBacksEnabled, defaultCardBackId, onSave, o
     </>
   );
 
+  if (pickerMode === "image") {
+    return (
+      <ImagePickerModal title="Select Card Image" onSelect={handleImageSelect} onClose={() => setPickerMode(null)} />
+    );
+  }
+
+  if (pickerMode === "back") {
+    return (
+      <ImagePickerModal title="Select Card Back" onSelect={handleBackSelect} onClose={() => setPickerMode(null)} />
+    );
+  }
+
   return (
     <Modal title="Edit Card" onClose={onClose} footer={footer}>
       <Input label="Name" value={name} onChange={setName} error={errors.name} />
@@ -97,14 +93,7 @@ export function CardModal({ card, cardBacksEnabled, defaultCardBackId, onSave, o
         {/* Image (front) column */}
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-            <Button onClick={() => fileInputRef.current?.click()}>Change Image</Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={handleFileChange}
-              hidden
-            />
+            <Button onClick={() => setPickerMode("image")}>Change Image</Button>
           </div>
           {image && (
             <img
@@ -119,19 +108,12 @@ export function CardModal({ card, cardBacksEnabled, defaultCardBackId, onSave, o
         {cardBacksEnabled && (
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-              <Button onClick={() => backFileInputRef.current?.click()}>Custom Back</Button>
+              <Button onClick={() => setPickerMode("back")}>Custom Back</Button>
               {cardBackId && (
                 <Button onClick={() => setCardBackId(undefined)} variant="danger">
                   Use Default
                 </Button>
               )}
-              <input
-                ref={backFileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={handleBackFileChange}
-                hidden
-              />
             </div>
             {effectiveBackImage ? (
               <img

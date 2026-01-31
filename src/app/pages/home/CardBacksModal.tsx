@@ -1,5 +1,6 @@
-import { useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/app/components/Button";
+import { ImagePickerModal } from "@/app/components/ImagePickerModal";
 import { Modal } from "@/app/components/Modal";
 import { Toggle } from "@/app/components/Toggle";
 import { useImageStore } from "@/app/store/images";
@@ -13,8 +14,8 @@ interface CardBacksModalProps {
 
 export function CardBacksModal({ session, onClose }: CardBacksModalProps) {
   const { updateSession } = useSessionStore();
-  const { getImage, addImage } = useImageStore();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { getImage } = useImageStore();
+  const [showPicker, setShowPicker] = useState(false);
 
   const enabled = session.cardBacksEnabled ?? false;
   const defaultBackImage =
@@ -24,18 +25,9 @@ export function CardBacksModal({ session, onClose }: CardBacksModalProps) {
     updateSession(session.id, { cardBacksEnabled: checked });
   };
 
-  const handleSetBack = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const data = reader.result as string;
-      const imageId = addImage(file.name, data);
-      updateSession(session.id, { defaultCardBackId: imageId });
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+  const handleSelectBack = (imageId: string) => {
+    updateSession(session.id, { defaultCardBackId: imageId });
+    setShowPicker(false);
   };
 
   const handleClearBack = () => {
@@ -47,6 +39,16 @@ export function CardBacksModal({ session, onClose }: CardBacksModalProps) {
       Done
     </Button>
   );
+
+  if (showPicker) {
+    return (
+      <ImagePickerModal
+        title="Select Default Back Image"
+        onSelect={handleSelectBack}
+        onClose={() => setShowPicker(false)}
+      />
+    );
+  }
 
   return (
     <Modal title="Card Backs" onClose={onClose} footer={footer}>
@@ -71,7 +73,7 @@ export function CardBacksModal({ session, onClose }: CardBacksModalProps) {
                   }}
                 />
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <Button onClick={() => fileInputRef.current?.click()}>Change</Button>
+                  <Button onClick={() => setShowPicker(true)}>Change</Button>
                   <Button onClick={handleClearBack} variant="danger">
                     Clear
                   </Button>
@@ -82,17 +84,9 @@ export function CardBacksModal({ session, onClose }: CardBacksModalProps) {
                 <p className="muted" style={{ marginBottom: "8px" }}>
                   No default back image set. Cards without a custom back will be skipped when generating backs PDF.
                 </p>
-                <Button onClick={() => fileInputRef.current?.click()}>Set Default Back</Button>
+                <Button onClick={() => setShowPicker(true)}>Set Default Back</Button>
               </div>
             )}
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={handleSetBack}
-              hidden
-            />
           </div>
         )}
 

@@ -173,19 +173,24 @@ function parseFilterExpression(expr: string, cards: DimRiftCard[]): DimRiftCard[
   });
 }
 
+type FindCardResult =
+  | { status: "found"; card: DimRiftCard }
+  | { status: "not-found" }
+  | { status: "ambiguous"; matches: DimRiftCard[] };
+
 /**
  * Find a card by name or key (case insensitive)
  */
-function findCard(query: string, cards: DimRiftCard[]): DimRiftCard | null {
+function findCard(query: string, cards: DimRiftCard[]): FindCardResult {
   const q = query.toLowerCase().trim();
 
   // Exact key match
   const byKey = cards.find((c) => c.key === q);
-  if (byKey) return byKey;
+  if (byKey) return { status: "found", card: byKey };
 
   // Exact name match (case insensitive)
   const byName = cards.find((c) => c.name.toLowerCase() === q);
-  if (byName) return byName;
+  if (byName) return { status: "found", card: byName };
 
   // Single word partial match - if exactly one card contains this word in its name
   if (!q.includes(" ") && !q.includes("_")) {
@@ -194,11 +199,14 @@ function findCard(query: string, cards: DimRiftCard[]): DimRiftCard | null {
       return words.some((word) => word.includes(q));
     });
     if (matches.length === 1 && matches[0]) {
-      return matches[0];
+      return { status: "found", card: matches[0] };
+    }
+    if (matches.length > 1) {
+      return { status: "ambiguous", matches };
     }
   }
 
-  return null;
+  return { status: "not-found" };
 }
 
 // Extended parsed card for Dim Rift including resolved cards from filters
@@ -321,13 +329,25 @@ export async function fetchCardsFromDimRift(
       }
     } else {
       // Regular card lookup
-      const card = findCard(entry.name, allCards);
-      if (card) {
-        resolvedCards.push({ card, count: entry.count });
+      const result = findCard(entry.name, allCards);
+      if (result.status === "found") {
+        resolvedCards.push({ card: result.card, count: entry.count });
+      } else if (result.status === "ambiguous") {
+        // Ambiguous match - create error entry with match info
+        const matchNames = result.matches.slice(0, 5).map((c) => c.name);
+        const suffix = result.matches.length > 5 ? `, +${String(result.matches.length - 5)} more` : "";
+        resolvedCards.push({
+          card: {
+            key: `__ERROR__:${entry.name}`,
+            name: entry.name,
+            type: { key: "ambiguous", desc: `Ambiguous: matches ${matchNames.join(", ")}${suffix}` },
+          },
+          count: entry.count,
+        });
       } else {
         // Card not found - we'll handle this in the results
         resolvedCards.push({
-          card: { key: entry.name, name: entry.name, type: { key: "unknown", desc: "Unknown" } },
+          card: { key: `__ERROR__:${entry.name}`, name: entry.name, type: { key: "not-found", desc: "Not found" } },
           count: entry.count,
         });
       }
@@ -357,12 +377,21 @@ export async function fetchCardsFromDimRift(
 
     onProgress?.(i + 1, uniqueCards.length, card.name);
 
-    // Check if it's a "not found" placeholder
-    if (card.type.key === "unknown") {
+    // Check if it's an error placeholder
+    if (card.type.key === "not-found") {
       results.push({
         name: card.name,
         count,
         error: "Card not found",
+      });
+      continue;
+    }
+
+    if (card.type.key === "ambiguous") {
+      results.push({
+        name: card.name,
+        count,
+        error: card.type.desc,
       });
       continue;
     }

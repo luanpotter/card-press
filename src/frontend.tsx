@@ -2,6 +2,8 @@ import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { App } from "@/app/App";
 
+import "drop-in-css/min";
+
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- Bun template: root element is guaranteed to exist
 const rootDiv = document.getElementById("root")!;
 const app = (

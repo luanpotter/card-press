@@ -63,8 +63,7 @@ export function Sessions() {
       main: true,
       render: (session) => (
         <>
-          {session.name}
-          {session.id === activeSessionId && <span className="badge">Active</span>}
+          {session.name} {session.id === activeSessionId && <code className="accent">Active</code>}
         </>
       ),
     },

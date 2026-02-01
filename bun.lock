@@ -4,6 +4,7 @@
     "": {
       "name": "bun-react-template",
       "dependencies": {
+        "drop-in-css": "^0.1.8",
         "idb-keyval": "^6.2.2",
         "pdf-lib": "^1.17.1",
         "react": "^19",
@@ -172,6 +173,8 @@
     "debug": ["debug@4.4.3", "", { "dependencies": { "ms": "^2.1.3" } }, "sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA=="],
 
     "deep-is": ["deep-is@0.1.4", "", {}, "sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ=="],
+
+    "drop-in-css": ["drop-in-css@0.1.8", "", {}, "sha512-ryFwrWUEpYa3LWxHStMaOrZLwxzm3pM5KmquO9m78xDPueyT56+mtTZLF2IJRJCkzP5CaZbPSJL3u0qivS/DeQ=="],
 
     "electron-to-chromium": ["electron-to-chromium@1.5.279", "", {}, "sha512-0bblUU5UNdOt5G7XqGiJtpZMONma6WAfq9vsFmtn9x1+joAObr6x1chfqyxFSDCAFwFhCQDrqeAr6MYdpwJ9Hg=="],
 

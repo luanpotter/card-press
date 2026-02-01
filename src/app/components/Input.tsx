@@ -12,7 +12,7 @@ export function Input({ label, value, onChange, placeholder, error, type = "text
     <label>
       <span>
         {label}
-        {error && <span className="error-text">[{error}]</span>}
+        {error && <span className="error">[{error}]</span>}
       </span>
       <input
         type={type}

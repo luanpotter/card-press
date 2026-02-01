@@ -80,8 +80,7 @@ export function Templates() {
       main: true,
       render: (template) => (
         <>
-          {template.name}
-          {template.id === defaultTemplateId && <span className="badge">Default</span>}
+          {template.name} {template.id === defaultTemplateId && <code className="accent">Default</code>}
         </>
       ),
     },

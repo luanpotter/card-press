@@ -11,12 +11,7 @@ export function Box({ label, error, children }: BoxProps) {
     <fieldset className={error ? "error" : undefined}>
       <legend>
         <span>{label}</span>
-        {error && (
-          <>
-            <span className="legend-border" />
-            <span className="error-text">[{error}]</span>
-          </>
-        )}
+        {error && <span className="error">[{error}]</span>}
       </legend>
       {children}
     </fieldset>

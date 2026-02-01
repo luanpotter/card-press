@@ -15,9 +15,25 @@
   margin-bottom: 1px;
 }
 
-.actions {
+.muted {
+  color: var(--border);
+}
+
+.danger {
+  color: var(--danger);
+}
+
+div.columns {
   display: flex;
-  gap: 4px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+div.right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 /* Table */
@@ -60,6 +76,11 @@ td.drag-handle:active:not(.disabled) {
 td.drag-handle.disabled {
   cursor: default;
   opacity: 0.3;
+}
+
+td .actions {
+  display: flex;
+  gap: 4px;
 }
 
 /* Modal */
@@ -150,34 +171,6 @@ td.drag-handle.disabled {
   padding: 0;
   font-size: 1em;
   line-height: 1;
-}
-
-/* Utilities */
-.muted {
-  color: var(--border);
-}
-
-.danger {
-  color: var(--danger);
-}
-
-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-div.columns {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-div.right {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: flex-end;
 }
 
 /* Card Grid (Icons View) */
@@ -323,15 +316,6 @@ label.toggle {
 }
 
 /* Image Picker Modal */
-menu.inline {
-  margin: 0;
-}
-
-menu.inline > a.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .image-picker-content {
   height: 300px;
 }

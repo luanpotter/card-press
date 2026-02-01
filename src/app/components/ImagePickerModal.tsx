@@ -94,7 +94,7 @@ export function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
   };
 
   const tabs = (
-    <menu className="inline">
+    <menu>
       <a
         href="#"
         className={tab === "upload" ? "active" : ""}

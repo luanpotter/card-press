@@ -9,6 +9,7 @@ import "@/sources/scryfall";
 import "@/sources/ygoprodeck";
 import "@/sources/pokemontcg";
 import "@/sources/dimrift";
+import "@/sources/localstorage";
 
 interface ImportCardsModalProps {
   onImport: (cards: FetchResult[]) => void;

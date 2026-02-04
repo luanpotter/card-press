@@ -8,6 +8,7 @@ import { useSessionStore } from "@/app/store/sessions";
 import { useTemplateStore } from "@/app/store/templates";
 import { DEFAULT_TEMPLATES } from "@/types/template";
 import { useState } from "react";
+import { LoadImagesModal } from "@/app/pages/config/LoadImagesModal";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -26,6 +27,7 @@ export function Config() {
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [showDeleteSessionsModal, setShowDeleteSessionsModal] = useState(false);
   const [showFactoryResetModal, setShowFactoryResetModal] = useState(false);
+  const [showLoadImagesModal, setShowLoadImagesModal] = useState(false);
 
   const handlePruneImages = () => {
     const usedIds = new Set(sessions.flatMap((s) => s.cards.map((c) => c.imageId)));
@@ -96,9 +98,12 @@ export function Config() {
       <ElementBox label="Sessions">
         <Element>
           <span>{imageStats}</span>
-          <Button onClick={handlePruneImages} variant="danger" disabled={!imagesHydrated || unusedImageCount === 0}>
-            Prune Unused Images
-          </Button>
+          <Buttons>
+            <Button onClick={() => setShowLoadImagesModal(true)}>Load Images</Button>
+            <Button onClick={handlePruneImages} variant="danger" disabled={!imagesHydrated || unusedImageCount === 0}>
+              Prune Unused Images
+            </Button>
+          </Buttons>
         </Element>
         <Element>
           <span>Sessions: {sessions.length}</span>
@@ -151,6 +156,8 @@ export function Config() {
           onClose={() => setShowFactoryResetModal(false)}
         />
       )}
+
+      {showLoadImagesModal && <LoadImagesModal onClose={() => setShowLoadImagesModal(false)} />}
     </main>
   );
 }

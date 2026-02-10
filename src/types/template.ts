@@ -67,7 +67,7 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     }),
   },
   {
-    name: "Letter / Cricut - MTG 3x2",
+    name: "Letter / Cricut - MTG 2x3",
     pageSize: PageSize.Letter,
     cardSize: mtgSize,
     slots: generateCricutSlots(),

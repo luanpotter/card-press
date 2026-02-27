@@ -47,6 +47,10 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
   const [newSlotX, setNewSlotX] = useState("");
   const [newSlotY, setNewSlotY] = useState("");
 
+  const [showNudgeModal, setShowNudgeModal] = useState(false);
+  const [nudgeDx, setNudgeDx] = useState("0");
+  const [nudgeDy, setNudgeDy] = useState("0");
+
   const [gridCols, setGridCols] = useState("3");
   const [gridRows, setGridRows] = useState("3");
   const [gridGap, setGridGap] = useState("5");
@@ -119,6 +123,17 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
       pageSize: PAGE_DIMENSIONS[pageSize],
     });
     setSlots(newSlots);
+  };
+
+  const handleNudge = () => {
+    const dx = Number(nudgeDx);
+    const dy = Number(nudgeDy);
+    if (isNaN(dx) || isNaN(dy)) return;
+
+    setSlots(slots.map((slot) => ({ x: slot.x + dx, y: slot.y + dy })));
+    setShowNudgeModal(false);
+    setNudgeDx("0");
+    setNudgeDy("0");
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -233,9 +248,12 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
           <Input label="Y (mm)" value={newSlotY} onChange={setNewSlotY} error={errors.slotY ? "invalid" : undefined} />
           <Button onClick={handleAddSlot}>Add Slot</Button>
           {slots.length > 0 && (
-            <Button onClick={() => setSlots([])} variant="danger">
-              Clear All
-            </Button>
+            <>
+              <Button onClick={() => setShowNudgeModal(true)}>Nudge</Button>
+              <Button onClick={() => setSlots([])} variant="danger">
+                Clear All
+              </Button>
+            </>
           )}
         </div>
 
@@ -267,6 +285,27 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
           </label>
         </div>
       </Box>
+
+      {showNudgeModal && (
+        <Modal
+          title="Nudge Slots"
+          onClose={() => setShowNudgeModal(false)}
+          footer={
+            <>
+              <Button onClick={() => setShowNudgeModal(false)}>Cancel</Button>
+              <Button onClick={handleNudge} variant="accent">
+                Apply
+              </Button>
+            </>
+          }
+        >
+          <p>Translate all slots by the specified offset.</p>
+          <div className="form-row">
+            <Input label="DX (mm)" value={nudgeDx} onChange={setNudgeDx} placeholder="0" />
+            <Input label="DY (mm)" value={nudgeDy} onChange={setNudgeDy} placeholder="0" />
+          </div>
+        </Modal>
+      )}
     </Modal>
   );
 }

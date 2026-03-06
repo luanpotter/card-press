@@ -7,8 +7,9 @@ import { usePdfStore } from "@/app/store/pdfs";
 import { CARD_SIZE_PRESETS, CardSizePreset, DEFAULT_CARD_SIZE, getCardSizePreset } from "@/types/card";
 import type { Dimension } from "@/types/dimension";
 import { PAGE_DIMENSIONS, PageSize } from "@/types/page";
-import type { Slot, Template } from "@/types/template";
+import type { Slot, Template, Guideline, GuidelineDirection } from "@/types/template";
 import { generateGrid } from "@/utils/grid";
+import { generateGridGuidelines } from "@/types/template";
 import { useRef, useState } from "react";
 
 interface TemplateModalProps {
@@ -42,6 +43,7 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
     getCardSizePreset(template?.cardSize ?? DEFAULT_CARD_SIZE)
   );
   const [slots, setSlots] = useState<Slot[]>(template?.slots ?? []);
+  const [guidelines, setGuidelines] = useState<Guideline[]>(template?.guidelines ?? []);
   const [basePdfId, setBasePdfId] = useState<string | undefined>(template?.basePdfId);
 
   const [newSlotX, setNewSlotX] = useState("");
@@ -50,6 +52,11 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
   const [showNudgeModal, setShowNudgeModal] = useState(false);
   const [nudgeDx, setNudgeDx] = useState("0");
   const [nudgeDy, setNudgeDy] = useState("0");
+
+  const [newGuidelineDirection, setNewGuidelineDirection] = useState<GuidelineDirection>("horizontal");
+  const [newGuidelineDistance, setNewGuidelineDistance] = useState("");
+  const [showGuidelineNudgeModal, setShowGuidelineNudgeModal] = useState(false);
+  const [guidelineNudgeAmount, setGuidelineNudgeAmount] = useState("0");
 
   const [gridCols, setGridCols] = useState("3");
   const [gridRows, setGridRows] = useState("3");
@@ -65,6 +72,7 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
     gridRows?: boolean;
     gridGap?: boolean;
     slots?: boolean;
+    guidelineDistance?: boolean;
   }>({});
 
   const isValidNumber = (value: string) => value.trim() !== "" && !isNaN(Number(value));
@@ -90,7 +98,7 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
 
   const handleSave = () => {
     if (!validate()) return;
-    onSave({ name, pageSize, cardSize, slots, basePdfId });
+    onSave({ name, pageSize, cardSize, slots, guidelines, basePdfId });
   };
 
   const handleAddSlot = () => {
@@ -115,14 +123,15 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
     setErrors((prev) => ({ ...prev, gridCols: !colsValid, gridRows: !rowsValid, gridGap: !gapValid }));
     if (!colsValid || !rowsValid || !gapValid) return;
 
-    const newSlots = generateGrid({
+    const gridConfig = {
       cols: Number(gridCols),
       rows: Number(gridRows),
       gap: Number(gridGap),
       cardSize,
       pageSize: PAGE_DIMENSIONS[pageSize],
-    });
-    setSlots(newSlots);
+    };
+    setSlots(generateGrid(gridConfig));
+    setGuidelines(generateGridGuidelines(gridConfig));
   };
 
   const handleNudge = () => {
@@ -151,6 +160,28 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  const handleAddGuideline = () => {
+    const distValid = isValidNonNegative(newGuidelineDistance);
+    setErrors((prev) => ({ ...prev, guidelineDistance: !distValid }));
+    if (!distValid) return;
+
+    setGuidelines([...guidelines, { direction: newGuidelineDirection, distance: Number(newGuidelineDistance) }]);
+    setNewGuidelineDistance("");
+  };
+
+  const handleDeleteGuideline = (index: number) => {
+    setGuidelines(guidelines.filter((_, i) => i !== index));
+  };
+
+  const handleGuidelineNudge = () => {
+    const amount = Number(guidelineNudgeAmount);
+    if (isNaN(amount)) return;
+
+    setGuidelines(guidelines.map((g) => ({ ...g, distance: Math.max(0, g.distance + amount) })));
+    setShowGuidelineNudgeModal(false);
+    setGuidelineNudgeAmount("0");
   };
 
   const basePdfOptions = [{ value: "", label: "None" }, ...pdfs.map((p) => ({ value: p.id, label: p.name }))];
@@ -286,6 +317,49 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
         </div>
       </Box>
 
+      <Box label={`Guidelines (${String(guidelines.length)})`}>
+        <div className="form-row">
+          <Select
+            label="Direction"
+            value={newGuidelineDirection}
+            onChange={(v) => setNewGuidelineDirection(v as GuidelineDirection)}
+            options={[
+              { value: "horizontal", label: "Horizontal" },
+              { value: "vertical", label: "Vertical" },
+            ]}
+          />
+          <Input
+            label="Distance (mm)"
+            value={newGuidelineDistance}
+            onChange={setNewGuidelineDistance}
+            placeholder="0"
+            error={errors.guidelineDistance ? "invalid" : undefined}
+          />
+          <Button onClick={handleAddGuideline}>Add</Button>
+          {guidelines.length > 0 && (
+            <>
+              <Button onClick={() => setShowGuidelineNudgeModal(true)}>Nudge</Button>
+              <Button onClick={() => setGuidelines([])} variant="danger">
+                Clear All
+              </Button>
+            </>
+          )}
+        </div>
+
+        {guidelines.length > 0 && (
+          <div className="slots-list">
+            {guidelines.map((g, i) => (
+              <span key={i} className="slot-tag">
+                {g.direction === "horizontal" ? "H" : "V"} {g.distance.toFixed(1)}mm
+                <button type="button" onClick={() => handleDeleteGuideline(i)}>
+                  x
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </Box>
+
       {showNudgeModal && (
         <Modal
           title="Nudge Slots"
@@ -303,6 +377,31 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
           <div className="form-row">
             <Input label="DX (mm)" value={nudgeDx} onChange={setNudgeDx} placeholder="0" />
             <Input label="DY (mm)" value={nudgeDy} onChange={setNudgeDy} placeholder="0" />
+          </div>
+        </Modal>
+      )}
+
+      {showGuidelineNudgeModal && (
+        <Modal
+          title="Nudge Guidelines"
+          onClose={() => setShowGuidelineNudgeModal(false)}
+          footer={
+            <>
+              <Button onClick={() => setShowGuidelineNudgeModal(false)}>Cancel</Button>
+              <Button onClick={handleGuidelineNudge} variant="accent">
+                Apply
+              </Button>
+            </>
+          }
+        >
+          <p>Shift all guideline distances by the specified amount.</p>
+          <div className="form-row">
+            <Input
+              label="Amount (mm)"
+              value={guidelineNudgeAmount}
+              onChange={setGuidelineNudgeAmount}
+              placeholder="0"
+            />
           </div>
         </Modal>
       )}

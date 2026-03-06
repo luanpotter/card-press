@@ -1,5 +1,5 @@
-import { PDFDocument, type PDFPage } from "pdf-lib";
-import type { Template, Slot } from "@/types/template";
+import { PDFDocument, type PDFPage, rgb } from "pdf-lib";
+import type { Template, Slot, Guideline } from "@/types/template";
 import type { Card } from "@/types/session";
 import { PAGE_DIMENSIONS } from "@/types/page";
 
@@ -139,6 +139,35 @@ async function drawCardOnPage(
 }
 
 /**
+ * Draw guidelines on a PDF page as thin black lines
+ */
+function drawGuidelines(page: PDFPage, guidelines: Guideline[], pageWidthMm: number, pageHeightMm: number): void {
+  const lineThickness = 0.5; // points
+
+  for (const guideline of guidelines) {
+    if (guideline.direction === "horizontal") {
+      // Horizontal line at distance from top edge, spanning full width
+      const y = (pageHeightMm - guideline.distance) * MM_TO_POINTS;
+      page.drawLine({
+        start: { x: 0, y },
+        end: { x: pageWidthMm * MM_TO_POINTS, y },
+        thickness: lineThickness,
+        color: rgb(0, 0, 0),
+      });
+    } else {
+      // Vertical line at distance from left edge, spanning full height
+      const x = guideline.distance * MM_TO_POINTS;
+      page.drawLine({
+        start: { x, y: 0 },
+        end: { x, y: pageHeightMm * MM_TO_POINTS },
+        thickness: lineThickness,
+        color: rgb(0, 0, 0),
+      });
+    }
+  }
+}
+
+/**
  * Generate a PDF with cards placed according to the template
  */
 export async function generatePdf({
@@ -202,6 +231,11 @@ export async function generatePdf({
     // Get cards for this page
     const startIdx = pageIndex * slotsPerPage;
     const pageCards = expandedCards.slice(startIdx, startIdx + slotsPerPage);
+
+    if (signal?.aborted) {
+      throw new DOMException("PDF generation cancelled", "AbortError");
+    }
+    drawGuidelines(page, template.guidelines, pageDimensions.width, pageDimensions.height);
 
     // Place each card in its slot
     for (let slotIndex = 0; slotIndex < pageCards.length; slotIndex++) {

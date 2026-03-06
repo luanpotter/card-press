@@ -108,7 +108,7 @@ function griSslots({
 }
 
 function generateCricutSlots(): Slot[] {
-  const offset = { x: 13.2, y: 46.8 };
+  const offset = { x: 12.7, y: 46.8 };
   const gap = { x: 63.11, dy: 88.11 };
   return [
     { x: 0, y: 0 },

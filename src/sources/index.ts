@@ -7,6 +7,8 @@ export interface ParsedCard {
   name?: string;
   id?: number;
   set?: string;
+  number?: string;
+  lang?: string;
 }
 
 export interface CardSource {

@@ -28,6 +28,15 @@ export interface FetchResult {
 }
 
 /**
+ * Normalize a Scryfall set code: strip non-alphanumeric characters and uppercase.
+ */
+function normalizeSetCode(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const normalized = raw.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  return normalized || undefined;
+}
+
+/**
  * Parse a card list in common MTG formats:
  * - "1 Mana Vault"
  * - "2x Counterspell"
@@ -40,30 +49,22 @@ export function parseCardList(text: string): ParsedCard[] {
     .filter((l) => l.length > 0);
   const cards: ParsedCard[] = [];
 
+  // Match: optional count (with optional 'x'), then card name, then optional set code
+  // Examples: "1 Mana Vault", "2x Counterspell", "1x Sol Ring (UMA)", "Mana Vault"
+  const regex = /^(?:(\d+)\s*x?\s+)?(.+?)(?:\s*\(([^)]+)\))?(?:\s*\d+)?(?:\s*\[.*\])?$/i;
+
   for (const line of lines) {
     // Skip comments
     if (line.startsWith("//") || line.startsWith("#")) continue;
 
-    // Match: optional count (with optional 'x'), then card name
-    // Examples: "1 Mana Vault", "2x Counterspell", "Mana Vault"
-    const regex = /^(\d+)\s*x?\s+(.+?)(?:\s*\([^)]+\))?(?:\s*\d+)?(?:\s*\[.*\])?$/i;
     const match = regex.exec(line);
+    if (!match?.[2]) continue;
 
-    if (match?.[1] && match[2]) {
-      const count = parseInt(match[1], 10);
-      const name = match[2].trim();
-      if (name && count > 0) {
-        cards.push({ count, name });
-      }
-    } else {
-      // Try without count (default to 1)
-      const nameOnly = line
-        .replace(/\s*\([^)]+\)\s*$/, "")
-        .replace(/\s*\[.*\]\s*$/, "")
-        .trim();
-      if (nameOnly) {
-        cards.push({ count: 1, name: nameOnly });
-      }
+    const count = match[1] ? parseInt(match[1], 10) : 1;
+    const name = match[2].trim();
+    const set = normalizeSetCode(match[3]);
+    if (name && count > 0) {
+      cards.push({ count, name, ...(set ? { set } : {}) });
     }
   }
 
@@ -75,10 +76,16 @@ interface ScryfallError {
 }
 
 /**
- * Fetch a card from Scryfall by name
+ * Fetch a card from Scryfall by name, optionally scoped to a set (alphanumeric set code)
  */
-export async function fetchCardFromScryfall(name: string): Promise<ScryfallCard> {
-  const url = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(name)}`;
+export async function fetchCardFromScryfall(name: string, set?: string): Promise<ScryfallCard> {
+  const params = new URLSearchParams({ fuzzy: name });
+  const normalizedSet = normalizeSetCode(set);
+  if (normalizedSet) {
+    params.set("set", normalizedSet);
+  }
+
+  const url = `https://api.scryfall.com/cards/named?${params.toString()}`;
   const response = await fetch(url);
 
   if (!response.ok) {
@@ -148,7 +155,7 @@ export async function fetchCardsFromScryfall(
     onProgress?.(i + 1, cards.length, card.name);
 
     try {
-      const scryfallCard = await fetchCardFromScryfall(card.name);
+      const scryfallCard = await fetchCardFromScryfall(card.name, card.set);
       const imageUrl = getCardImageUrl(scryfallCard);
 
       if (!imageUrl) {

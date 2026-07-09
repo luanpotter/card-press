@@ -102,7 +102,7 @@ describe("fetchCardFromScryfall", () => {
 
   test("requests the named endpoint with a fuzzy name", async () => {
     const card: ScryfallCard = { name: "Sol Ring" };
-    const fetchMock = mock(() => Promise.resolve(jsonResponse(card)));
+    const fetchMock = mock<(url: string) => Promise<Response>>(() => Promise.resolve(jsonResponse(card)));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const result = await fetchCardFromScryfall("Sol Ring");
@@ -114,7 +114,7 @@ describe("fetchCardFromScryfall", () => {
 
   test("includes a normalized, uppercased set parameter when provided", async () => {
     const card: ScryfallCard = { name: "Sol Ring" };
-    const fetchMock = mock(() => Promise.resolve(jsonResponse(card)));
+    const fetchMock = mock<(url: string) => Promise<Response>>(() => Promise.resolve(jsonResponse(card)));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await fetchCardFromScryfall("Sol Ring", "uma");
@@ -124,14 +124,18 @@ describe("fetchCardFromScryfall", () => {
   });
 
   test("throws the API's error details on failure", () => {
-    const fetchMock = mock(() => Promise.resolve(jsonResponse({ details: "No cards found" }, { status: 404 })));
+    const fetchMock = mock<(url: string) => Promise<Response>>(() =>
+      Promise.resolve(jsonResponse({ details: "No cards found" }, { status: 404 }))
+    );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     expect(fetchCardFromScryfall("Not A Real Card")).rejects.toThrow("No cards found");
   });
 
   test("falls back to a generic error when the API gives no details", () => {
-    const fetchMock = mock(() => Promise.resolve(new Response("", { status: 500 })));
+    const fetchMock = mock<(url: string) => Promise<Response>>(() =>
+      Promise.resolve(new Response("", { status: 500 }))
+    );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     expect(fetchCardFromScryfall("Sol Ring")).rejects.toThrow("Card not found: Sol Ring");
@@ -145,7 +149,7 @@ describe("fetchCardByCollectorNumber", () => {
 
   test("requests the collector-number endpoint with a lowercased code and default language", async () => {
     const card: ScryfallCard = { name: "Sol Ring" };
-    const fetchMock = mock(() => Promise.resolve(jsonResponse(card)));
+    const fetchMock = mock<(url: string) => Promise<Response>>(() => Promise.resolve(jsonResponse(card)));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const result = await fetchCardByCollectorNumber("UMA", "1");
@@ -157,7 +161,7 @@ describe("fetchCardByCollectorNumber", () => {
 
   test("lowercases an explicit language", async () => {
     const card: ScryfallCard = { name: "Sol Ring" };
-    const fetchMock = mock(() => Promise.resolve(jsonResponse(card)));
+    const fetchMock = mock<(url: string) => Promise<Response>>(() => Promise.resolve(jsonResponse(card)));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     await fetchCardByCollectorNumber("UMA", "1", "JA");
@@ -167,7 +171,7 @@ describe("fetchCardByCollectorNumber", () => {
   });
 
   test("throws without calling fetch when the set code is missing", () => {
-    const fetchMock = mock(() => Promise.resolve(jsonResponse({})));
+    const fetchMock = mock<(url: string) => Promise<Response>>(() => Promise.resolve(jsonResponse({})));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     expect(fetchCardByCollectorNumber("", "1")).rejects.toThrow("A set code and collector number are required");
@@ -175,7 +179,9 @@ describe("fetchCardByCollectorNumber", () => {
   });
 
   test("throws the API's error details on failure", () => {
-    const fetchMock = mock(() => Promise.resolve(jsonResponse({ details: "Card not found" }, { status: 404 })));
+    const fetchMock = mock<(url: string) => Promise<Response>>(() =>
+      Promise.resolve(jsonResponse({ details: "Card not found" }, { status: 404 }))
+    );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     expect(fetchCardByCollectorNumber("UMA", "999")).rejects.toThrow("Card not found");
@@ -218,7 +224,7 @@ describe("downloadImageAsDataUrl", () => {
 
   test("converts a fetched image into a data URL", async () => {
     const bytes = new Uint8Array([1, 2, 3]);
-    const fetchMock = mock(() =>
+    const fetchMock = mock<(url: string) => Promise<Response>>(() =>
       Promise.resolve(new Response(bytes, { status: 200, headers: { "content-type": "image/png" } }))
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -229,7 +235,9 @@ describe("downloadImageAsDataUrl", () => {
   });
 
   test("throws when the download fails", () => {
-    const fetchMock = mock(() => Promise.resolve(new Response("", { status: 404 })));
+    const fetchMock = mock<(url: string) => Promise<Response>>(() =>
+      Promise.resolve(new Response("", { status: 404 }))
+    );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     expect(downloadImageAsDataUrl("https://example.com/missing.png")).rejects.toThrow("Failed to download image: 404");
@@ -253,7 +261,7 @@ describe("fetchCardsFromScryfall", () => {
 
   test("fetches by name via the named endpoint", async () => {
     const card: ScryfallCard = { name: "Sol Ring" };
-    const fetchMock = mock(() => Promise.resolve(jsonResponse(card)));
+    const fetchMock = mock<(url: string) => Promise<Response>>(() => Promise.resolve(jsonResponse(card)));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const results = await fetchCardsFromScryfall([{ count: 1, name: "Sol Ring" }], storeImage);
@@ -265,7 +273,7 @@ describe("fetchCardsFromScryfall", () => {
 
   test("fetches by collector number when no name is present", async () => {
     const card: ScryfallCard = { name: "Sol Ring" };
-    const fetchMock = mock(() => Promise.resolve(jsonResponse(card)));
+    const fetchMock = mock<(url: string) => Promise<Response>>(() => Promise.resolve(jsonResponse(card)));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const results = await fetchCardsFromScryfall([{ count: 1, set: "UMA", number: "1", lang: "ja" }], storeImage);
@@ -276,7 +284,7 @@ describe("fetchCardsFromScryfall", () => {
   });
 
   test("reports a card entry missing both a name and set/collector number without calling fetch", async () => {
-    const fetchMock = mock(() => Promise.resolve(jsonResponse({})));
+    const fetchMock = mock<(url: string) => Promise<Response>>(() => Promise.resolve(jsonResponse({})));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const results = await fetchCardsFromScryfall([{ count: 1, set: "UMA" }], storeImage);
@@ -286,7 +294,9 @@ describe("fetchCardsFromScryfall", () => {
   });
 
   test("falls back to a set/number label and records the error when the request fails", async () => {
-    const fetchMock = mock(() => Promise.resolve(jsonResponse({ details: "Card not found" }, { status: 404 })));
+    const fetchMock = mock<(url: string) => Promise<Response>>(() =>
+      Promise.resolve(jsonResponse({ details: "Card not found" }, { status: 404 }))
+    );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const results = await fetchCardsFromScryfall([{ count: 3, set: "UMA", number: "1" }], storeImage);
@@ -295,7 +305,9 @@ describe("fetchCardsFromScryfall", () => {
   });
 
   test("stops processing once the signal is aborted", async () => {
-    const fetchMock = mock(() => Promise.resolve(jsonResponse({ name: "Sol Ring" })));
+    const fetchMock = mock<(url: string) => Promise<Response>>(() =>
+      Promise.resolve(jsonResponse({ name: "Sol Ring" }))
+    );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const controller = new AbortController();

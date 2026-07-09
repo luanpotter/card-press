@@ -10,6 +10,7 @@
     "dev": "bun run generate && bun --hot src/index.tsx",
     "build": "bun run generate && bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
     "start": "NODE_ENV=production bun src/index.tsx",
+    "test": "bun test",
     "lint": "bun run generate && eslint src && prettier --check src",
     "lint:fix": "bun run generate && eslint src --fix && prettier --write src",
     "format": "prettier --write src"

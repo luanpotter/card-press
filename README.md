@@ -15,14 +15,11 @@ Best suited for smaller print runs, as the PDF templates and card images are sto
 ## Features
 
 - Run it yourself or use our [GitHub Pages deployment](https://luan.xyz/projects/card-press), fully free and no fuss.
-- Define your own template or use the built-in for simple 3x3 PDFs (A4 or Letter) or the custom _Cricut_ template.
+- Define your own template or use the built-in for simple 3x3 PDFs (A4 or Letter) or the custom _Cricut_ template (check [my tutorial on how to automatically cut cards with a Cricut](https://luan.xyz/articles/print-and-play-with-cricut/)).
 - Store multiple sessions with different card sets and templates.
-- Add cards using the multi-file picker, pasting from clipboard, or import from outside sources (note: the import feature will connect to an external website).
+- Add cards using the multi-file picker, pasting from clipboard, or import from outside sources (note: the import feature will connect to an external website; see each source for details).
 - Optional support for a card-backs PDF.
 - All data is stored locally on your LocalStorage and IndexedDB; no server connection. Your files are never uploaded to the internet.
-
-> [!NOTE]
-> I'm still refining the Cricut template and workflow. I will be posting more detailed instructions on that part once I have it settled.
 
 ## Development
 

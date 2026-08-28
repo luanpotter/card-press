@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Template } from "@/types/template";
-import type { Card, Session } from "@/types/session";
+import { getCardBacks, type Card, type Session } from "@/types/session";
 import { generatePdf, downloadPdf } from "@/utils/generatePdf";
 
 interface StoredImage {
@@ -147,7 +147,6 @@ export function usePdfGenerator({
             cards,
             getImage,
             getPdf,
-            defaultCardBackId: session.defaultCardBackId,
             onProgress: (current, total) => setPdfProgress({ current, total }),
             signal: abortController.signal,
           });
@@ -165,7 +164,7 @@ export function usePdfGenerator({
         }
       })();
     }, 0);
-  }, [template, cards, getImage, getPdf, session.defaultCardBackId, session.name]);
+  }, [template, cards, getImage, getPdf, session.name]);
 
   const handleGenerateBacks = useCallback(() => {
     if (!template || cards.length === 0) return;
@@ -174,6 +173,8 @@ export function usePdfGenerator({
     abortControllerRef.current?.abort();
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
+
+    const { defaultBackId, mirror } = getCardBacks(session);
 
     setGeneratingBacks(true);
     setPdfProgress({ current: 0, total: 0 });
@@ -186,8 +187,7 @@ export function usePdfGenerator({
             cards,
             getImage,
             getPdf,
-            defaultCardBackId: session.defaultCardBackId,
-            generateBacks: true,
+            backs: { defaultBackId, mirror },
             onProgress: (current, total) => setPdfProgress({ current, total }),
             signal: abortController.signal,
           });
@@ -205,7 +205,7 @@ export function usePdfGenerator({
         }
       })();
     }, 0);
-  }, [template, cards, getImage, getPdf, session.defaultCardBackId, session.name]);
+  }, [template, cards, getImage, getPdf, session]);
 
   return {
     generating,

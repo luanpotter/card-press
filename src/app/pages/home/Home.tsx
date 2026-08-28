@@ -16,7 +16,7 @@ import { ImportCardsModal } from "@/app/pages/home/ImportCardsModal";
 import { SessionModal } from "@/app/pages/sessions/SessionModal";
 import { usePdfGenerator } from "@/app/pages/home/usePdfGenerator";
 import type { FetchResult } from "@/sources/index";
-import type { Card } from "@/types/session";
+import { getCardBacks, type Card } from "@/types/session";
 
 type ViewMode = "list" | "images";
 
@@ -222,7 +222,7 @@ export function Home() {
     cancelGeneration,
   } = usePdfGenerator({
     cards,
-    session: activeSession ?? { id: "", name: "", templateId: "", cards: [], cardBacksEnabled: false },
+    session: activeSession ?? { id: "", name: "", templateId: "", cards: [] },
     template: activeTemplate,
     getImage,
     getPdf,
@@ -384,6 +384,8 @@ export function Home() {
 
   const existingSessionNames = new Set(sessions.map((s) => s.name));
 
+  const cardBacks = getCardBacks(activeSession);
+
   const handleSaveSession = (updates: { name: string; templateId: string }) => {
     updateSession(activeSession.id, updates);
     setShowEditSession(false);
@@ -401,7 +403,7 @@ export function Home() {
         </div>
         <div className="muted">
           {activeTemplate?.name ?? "Unknown"} • {activeTemplate?.slots.length ?? 0} slots
-          {activeSession.cardBacksEnabled && " • Card Backs ✓"}
+          {cardBacks.enabled && " • Card Backs ✓"}
         </div>
       </Box>
 
@@ -470,7 +472,7 @@ export function Home() {
           <Button onClick={handleGenerate} disabled={cards.length === 0 || generating}>
             {generating ? "Generating..." : "↓ Download"}
           </Button>
-          {activeSession.cardBacksEnabled && (
+          {cardBacks.enabled && (
             <Button onClick={handleGenerateBacks} disabled={cards.length === 0 || generatingBacks}>
               {generatingBacks ? "Generating..." : "↓ Download Backs"}
             </Button>
@@ -490,8 +492,7 @@ export function Home() {
           card={editingCard}
           onSave={handleSaveCard}
           onClose={() => setEditingCard(undefined)}
-          cardBacksEnabled={activeSession.cardBacksEnabled}
-          defaultCardBackId={activeSession.defaultCardBackId}
+          cardBacks={cardBacks}
         />
       )}
 

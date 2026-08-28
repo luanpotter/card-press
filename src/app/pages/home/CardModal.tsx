@@ -3,20 +3,19 @@ import { ImagePickerModal } from "@/app/components/ImagePickerModal";
 import { Input } from "@/app/components/Input";
 import { Modal } from "@/app/components/Modal";
 import { useImageStore } from "@/app/store/images";
-import type { Card } from "@/types/session";
+import type { Card, CardBacks } from "@/types/session";
 import { useState } from "react";
 
 interface CardModalProps {
   card: Card;
-  cardBacksEnabled?: boolean | undefined;
-  defaultCardBackId?: string | undefined;
+  cardBacks: CardBacks;
   onSave: (card: Partial<Omit<Card, "id">>) => void;
   onClose: () => void;
 }
 
 type PickerMode = "image" | "back" | null;
 
-export function CardModal({ card, cardBacksEnabled, defaultCardBackId, onSave, onClose }: CardModalProps) {
+export function CardModal({ card, cardBacks, onSave, onClose }: CardModalProps) {
   const { getImage } = useImageStore();
 
   const [name, setName] = useState(card.name);
@@ -32,7 +31,7 @@ export function CardModal({ card, cardBacksEnabled, defaultCardBackId, onSave, o
 
   const image = getImage(imageId);
   const cardBackImage = cardBackId ? getImage(cardBackId) : null;
-  const effectiveBackImage = cardBackImage ?? (defaultCardBackId ? getImage(defaultCardBackId) : null);
+  const effectiveBackImage = cardBackImage ?? (cardBacks.defaultBackId ? getImage(cardBacks.defaultBackId) : null);
 
   const validate = () => {
     const newErrors: typeof errors = {};
@@ -101,7 +100,7 @@ export function CardModal({ card, cardBacksEnabled, defaultCardBackId, onSave, o
         </div>
 
         {/* Card back column */}
-        {cardBacksEnabled && (
+        {cardBacks.enabled && (
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
               <Button onClick={() => setPickerMode("back")}>Custom Back</Button>

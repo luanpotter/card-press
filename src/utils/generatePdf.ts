@@ -1,7 +1,7 @@
 import { PDFDocument, type PDFPage, rgb } from "pdf-lib";
 import type { Template, Slot, Guideline } from "@/types/template";
-import type { Card } from "@/types/session";
-import { PAGE_DIMENSIONS } from "@/types/page";
+import type { Card, CardBacks } from "@/types/session";
+import { MirrorAxis, PAGE_DIMENSIONS } from "@/types/page";
 
 // Convert mm to PDF points (1 inch = 72 points, 1 inch = 25.4mm)
 const MM_TO_POINTS = 72 / 25.4;
@@ -23,9 +23,8 @@ interface GeneratePdfOptions {
   getPdf: (id: string) => StoredPdf | undefined;
   onProgress?: (current: number, total: number) => void;
   signal?: AbortSignal;
-  // For generating backs PDF
-  defaultCardBackId?: string | undefined;
-  generateBacks?: boolean;
+  /** When provided, the backs PDF is generated instead of the fronts one */
+  backs?: Omit<CardBacks, "enabled"> | undefined;
 }
 
 interface ExpandedCard {
@@ -44,6 +43,39 @@ function expandCards(cards: Card[]): ExpandedCard[] {
     }
   }
   return expanded;
+}
+
+/**
+ * Reflect every page of a document across the given axis, including all contents.
+ *
+ * Pages are drawn as embedded form XObjects with a negative scale.
+ * This goes through the saved bytes; embedding pages of a still-open document loses their resources.
+ */
+async function mirrorPdf(pdfBytes: Uint8Array, mirror: MirrorAxis): Promise<Uint8Array> {
+  const vertical = mirror === MirrorAxis.Vertical;
+  const source = await PDFDocument.load(pdfBytes);
+  const mirrored = await PDFDocument.create();
+
+  const pages = source.getPages();
+  const embeddedPages = await mirrored.embedPages(pages);
+
+  for (const [index, page] of pages.entries()) {
+    const embeddedPage = embeddedPages[index];
+    if (!embeddedPage) {
+      continue;
+    }
+
+    const { width, height } = page.getSize();
+    // Drawing from the far edge with a negative size flips that axis around the page center
+    mirrored.addPage([width, height]).drawPage(embeddedPage, {
+      x: vertical ? 0 : width,
+      y: vertical ? height : 0,
+      width: vertical ? width : -width,
+      height: vertical ? -height : height,
+    });
+  }
+
+  return await mirrored.save();
 }
 
 /**
@@ -94,7 +126,9 @@ async function convertWebpToPng(webpDataUrl: string): Promise<string> {
 }
 
 /**
- * Draw an image on a PDF page at the specified slot position
+ * Draw an image on a PDF page at the specified slot position, possibly mirrorer.
+ * For flipped pages (backs), we render the images themselves mirrored so they reverse back
+ * correctly when the whole page is mirrored for the slots and cut lines.
  */
 async function drawCardOnPage(
   pdfDoc: PDFDocument,
@@ -103,7 +137,8 @@ async function drawCardOnPage(
   cardWidth: number,
   cardHeight: number,
   pageHeight: number,
-  imageData: string
+  imageData: string,
+  mirror: MirrorAxis | undefined
 ): Promise<void> {
   let imageType = getImageType(imageData);
   if (!imageType) {
@@ -130,11 +165,15 @@ async function drawCardOnPage(
   // slot.y is from top in mm, convert to bottom-left origin
   const y = (pageHeight - slot.y - cardHeight) * MM_TO_POINTS;
 
+  // A negative size draws the image reversed, from the opposite edge of the same slot
+  const reverseVertically = mirror === MirrorAxis.Vertical;
+  const reverseHorizontally = mirror !== undefined && !reverseVertically;
+
   page.drawImage(image, {
-    x,
-    y,
-    width,
-    height,
+    x: reverseHorizontally ? x + width : x,
+    y: reverseVertically ? y + height : y,
+    width: reverseHorizontally ? -width : width,
+    height: reverseVertically ? -height : height,
   });
 }
 
@@ -177,8 +216,7 @@ export async function generatePdf({
   getPdf,
   onProgress,
   signal,
-  defaultCardBackId,
-  generateBacks = false,
+  backs,
 }: GeneratePdfOptions): Promise<Uint8Array> {
   const expandedCards = expandCards(cards);
 
@@ -251,9 +289,9 @@ export async function generatePdf({
 
       // Determine which image to use (front or back)
       let imageIdToUse: string;
-      if (generateBacks) {
+      if (backs) {
         // For backs: use card-specific back, fall back to default, or skip if none
-        imageIdToUse = expandedCard.cardBackId ?? defaultCardBackId ?? "";
+        imageIdToUse = expandedCard.cardBackId ?? backs.defaultBackId ?? "";
         if (!imageIdToUse) continue;
       } else {
         imageIdToUse = expandedCard.imageId;
@@ -276,7 +314,8 @@ export async function generatePdf({
         template.cardSize.width,
         template.cardSize.height,
         pageDimensions.height,
-        image.data
+        image.data,
+        backs?.mirror
       );
 
       // Yield to main thread periodically to keep UI responsive
@@ -286,7 +325,8 @@ export async function generatePdf({
     }
   }
 
-  return await pdfDoc.save();
+  const pdfBytes = await pdfDoc.save();
+  return backs ? await mirrorPdf(pdfBytes, backs.mirror) : pdfBytes;
 }
 
 /**

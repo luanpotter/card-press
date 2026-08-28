@@ -2,10 +2,12 @@ import { useState } from "react";
 import { Button } from "@/app/components/Button";
 import { ImagePickerModal } from "@/app/components/ImagePickerModal";
 import { Modal } from "@/app/components/Modal";
+import { Select } from "@/app/components/Select";
 import { Toggle } from "@/app/components/Toggle";
 import { useImageStore } from "@/app/store/images";
 import { useSessionStore } from "@/app/store/sessions";
-import type { Session } from "@/types/session";
+import { MirrorAxis } from "@/types/page";
+import { getCardBacks, type CardBacks, type Session } from "@/types/session";
 
 interface CardBacksModalProps {
   session: Session;
@@ -17,21 +19,17 @@ export function CardBacksModal({ session, onClose }: CardBacksModalProps) {
   const { getImage } = useImageStore();
   const [showPicker, setShowPicker] = useState(false);
 
-  const enabled = session.cardBacksEnabled ?? false;
-  const defaultBackImage =
-    session.defaultCardBackId && session.defaultCardBackId !== "" ? getImage(session.defaultCardBackId) : null;
+  const cardBacks = getCardBacks(session);
+  const { enabled, defaultBackId, mirror } = cardBacks;
+  const defaultBackImage = defaultBackId ? getImage(defaultBackId) : null;
 
-  const handleToggle = (checked: boolean) => {
-    updateSession(session.id, { cardBacksEnabled: checked });
+  const update = (updates: Partial<CardBacks>) => {
+    updateSession(session.id, { cardBacks: { ...cardBacks, ...updates } });
   };
 
   const handleSelectBack = (imageId: string) => {
-    updateSession(session.id, { defaultCardBackId: imageId });
+    update({ defaultBackId: imageId });
     setShowPicker(false);
-  };
-
-  const handleClearBack = () => {
-    updateSession(session.id, { defaultCardBackId: "" });
   };
 
   const footer = (
@@ -47,7 +45,11 @@ export function CardBacksModal({ session, onClose }: CardBacksModalProps) {
   return (
     <Modal title="Card Backs" onClose={onClose} footer={footer}>
       <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-        <Toggle checked={enabled} onChange={handleToggle} label="Enable card backs for this session" />
+        <Toggle
+          checked={enabled}
+          onChange={(checked) => update({ enabled: checked })}
+          label="Enable card backs for this session"
+        />
 
         {enabled && (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -68,7 +70,7 @@ export function CardBacksModal({ session, onClose }: CardBacksModalProps) {
                 />
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   <Button onClick={() => setShowPicker(true)}>Change</Button>
-                  <Button onClick={handleClearBack} variant="danger">
+                  <Button onClick={() => update({ defaultBackId: undefined })} variant="danger">
                     Clear
                   </Button>
                 </div>
@@ -81,6 +83,20 @@ export function CardBacksModal({ session, onClose }: CardBacksModalProps) {
                 <Button onClick={() => setShowPicker(true)}>Set Default Back</Button>
               </div>
             )}
+
+            <Select
+              label="Mirror"
+              value={mirror}
+              onChange={(value) => update({ mirror: value as MirrorAxis })}
+              options={[
+                { value: MirrorAxis.Horizontal, label: "Horizontal" },
+                { value: MirrorAxis.Vertical, label: "Vertical" },
+              ]}
+            />
+            <p className="muted" style={{ margin: 0 }}>
+              Choice of how to flip the sheet over to print the backs. All elements will be mirrored to match either a
+              horizontal (book) or vertical (calendar) page flip.
+            </p>
           </div>
         )}
 

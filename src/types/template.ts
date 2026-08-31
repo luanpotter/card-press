@@ -2,7 +2,7 @@ import { CARD_SIZE_PRESETS, CardSizePreset } from "@/types/card";
 import type { Dimension } from "@/types/dimension";
 import { PAGE_DIMENSIONS, PageSize } from "@/types/page";
 import { generateGrid } from "@/utils/grid";
-import { US_LETTER_CRICUT_TEMPLATE_PDF } from "@/generated/assets";
+import * as TemplatesPdf from "@/generated/assets";
 
 export interface Slot {
   x: number;
@@ -128,10 +128,35 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     name: "Letter / Cricut - MTG 2x3",
     pageSize: PageSize.Letter,
     cardSize: mtgSize,
-    ...generateCricutSlotsAndGuidelines(),
+    ...generateCricutSlotsAndGuidelines({
+      offset: { x: 12.7, y: 46.8 },
+      gap: { x: 63.11, dy: 88.11 },
+      cardWidth: mtgSize.width,
+      cardHeight: mtgSize.height,
+      cols: 3,
+      rows: 2,
+    }),
     bundledPdf: {
       name: "Cricut Template",
-      dataUrl: US_LETTER_CRICUT_TEMPLATE_PDF,
+      dataUrl: TemplatesPdf.US_LETTER_2X3_MTG_CRICUT_TEMPLATE_PDF,
+    },
+    isDefault: true,
+  },
+  {
+    name: "Letter / Cricut - 3x4in 2x2",
+    pageSize: PageSize.Letter,
+    cardSize: { width: 76.2, height: 101.6 },
+    ...generateCricutSlotsAndGuidelines({
+      offset: { x: 22.18, y: 22.18 },
+      gap: { x: 76.2, dy: 101.6 },
+      cardWidth: 76.2,
+      cardHeight: 101.6,
+      cols: 2,
+      rows: 2,
+    }),
+    bundledPdf: {
+      name: "Cricut Template (2x2, 3x4in)",
+      dataUrl: TemplatesPdf.US_LETTER_2X2V_3X4IN_CRICUT_TEMPLATE_PDF,
     },
     isDefault: true,
   },
@@ -168,22 +193,27 @@ function gridSlots({
   };
 }
 
-function generateCricutSlotsAndGuidelines(): { slots: Slot[]; guidelines: Guideline[] } {
-  const offset = { x: 12.7, y: 46.8 };
-  const gap = { x: 63.11, dy: 88.11 };
-  const cardWidth = 63;
-  const cardHeight = 88;
-  const cols = 3;
-  const rows = 2;
-
-  const slots = [
-    { x: 0, y: 0 },
-    { x: gap.x, y: 0 },
-    { x: gap.x * 2, y: 0 },
-    { x: 0, y: gap.dy },
-    { x: gap.x, y: gap.dy },
-    { x: gap.x * 2, y: gap.dy },
-  ].map((slot) => ({ x: slot.x + offset.x, y: slot.y + offset.y }));
+function generateCricutSlotsAndGuidelines({
+  offset,
+  gap,
+  cardWidth,
+  cardHeight,
+  cols,
+  rows,
+}: {
+  offset: { x: number; y: number };
+  gap: { x: number; dy: number };
+  cardWidth: number;
+  cardHeight: number;
+  cols: number;
+  rows: number;
+}): { slots: Slot[]; guidelines: Guideline[] } {
+  const slots: Slot[] = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      slots.push({ x: offset.x + col * gap.x, y: offset.y + row * gap.dy });
+    }
+  }
 
   const guidelines: Guideline[] = [];
   const gapX = gap.x - cardWidth;

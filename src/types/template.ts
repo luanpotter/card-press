@@ -147,7 +147,7 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     pageSize: PageSize.Letter,
     cardSize: { width: 76.2, height: 101.6 },
     ...generateCricutSlotsAndGuidelines({
-      offset: { x: 22.18, y: 22.18 },
+      offset: { x: 22.28, y: 22.28 },
       gap: { x: 76.2, dy: 101.6 },
       cardWidth: 76.2,
       cardHeight: 101.6,

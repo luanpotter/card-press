@@ -16,6 +16,14 @@ export interface Guideline {
   distance: number; // dy for horizontal, dx for vertical (mm from page edge)
 }
 
+/** If this template is paired with a Cricut template. */
+export interface CricutTemplate {
+  /** Reference to the base PDF used as a backplate. */
+  basePdfId: string | undefined;
+  /** Link to the equivalent project on Cricut Design Studio. */
+  cricutUrl: string | undefined;
+}
+
 export interface Template {
   id: string;
   name: string;
@@ -23,13 +31,18 @@ export interface Template {
   cardSize: Dimension;
   slots: Slot[];
   guidelines: Guideline[];
-  basePdfId: string | undefined;
+  cricut: CricutTemplate | undefined;
 }
 
-/** Default template definition with optional bundled PDF */
-export interface DefaultTemplate extends Omit<Template, "id" | "basePdfId"> {
-  /** Bundled PDF data URL to be added to PDF store when loading defaults */
-  bundledPdf?: { name: string; dataUrl: string };
+/** A Cricut template whose base PDF is bundled with the app, rather than stored. */
+export interface DefaultCricutTemplate extends Omit<CricutTemplate, "basePdfId"> {
+  /** Bundled PDF data URL to be added to the PDF store when loading defaults */
+  bundledPdf: { name: string; dataUrl: string } | undefined;
+}
+
+/** Default template definition with an optional bundled Cricut template */
+export interface DefaultTemplate extends Omit<Template, "id" | "cricut"> {
+  cricut?: DefaultCricutTemplate;
   /** Whether this should be set as the default template when loaded */
   isDefault?: boolean;
 }
@@ -136,9 +149,12 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       cols: 3,
       rows: 2,
     }),
-    bundledPdf: {
-      name: "Cricut Template",
-      dataUrl: TemplatesPdf.US_LETTER_2X3_MTG_CRICUT_TEMPLATE_PDF,
+    cricut: {
+      bundledPdf: {
+        name: "Cricut Template (2x3, MTG)",
+        dataUrl: TemplatesPdf.US_LETTER_2X3_MTG_CRICUT_TEMPLATE_PDF,
+      },
+      cricutUrl: "https://design.cricut.com/landing/project-detail/6972a7fa5a32d4c55fe26907",
     },
     isDefault: true,
   },
@@ -154,9 +170,12 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       cols: 2,
       rows: 2,
     }),
-    bundledPdf: {
-      name: "Cricut Template (2x2, 3x4in)",
-      dataUrl: TemplatesPdf.US_LETTER_2X2V_3X4IN_CRICUT_TEMPLATE_PDF,
+    cricut: {
+      bundledPdf: {
+        name: "Cricut Template (2x2, 3x4in)",
+        dataUrl: TemplatesPdf.US_LETTER_2X2V_3X4IN_CRICUT_TEMPLATE_PDF,
+      },
+      cricutUrl: "https://design.cricut.com/landing/project-detail/6a95983ecd24146842714928",
     },
     isDefault: true,
   },

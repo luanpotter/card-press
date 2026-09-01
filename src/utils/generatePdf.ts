@@ -237,8 +237,8 @@ export async function generatePdf({
   // Load base PDF if available
   let basePdfDoc: PDFDocument | null = null;
 
-  if (template.basePdfId) {
-    const basePdf = getPdf(template.basePdfId);
+  if (template.cricut?.basePdfId) {
+    const basePdf = getPdf(template.cricut.basePdfId);
     if (basePdf) {
       const pdfBytes = dataUrlToBytes(basePdf.data);
       basePdfDoc = await PDFDocument.load(pdfBytes);

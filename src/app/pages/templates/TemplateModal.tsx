@@ -44,7 +44,8 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
   );
   const [slots, setSlots] = useState<Slot[]>(template?.slots ?? []);
   const [guidelines, setGuidelines] = useState<Guideline[]>(template?.guidelines ?? []);
-  const [basePdfId, setBasePdfId] = useState<string | undefined>(template?.basePdfId);
+  const [basePdfId, setBasePdfId] = useState<string | undefined>(template?.cricut?.basePdfId);
+  const [cricutUrl, setCricutUrl] = useState<string | undefined>(template?.cricut?.cricutUrl);
 
   const [newSlotX, setNewSlotX] = useState("");
   const [newSlotY, setNewSlotY] = useState("");
@@ -98,7 +99,8 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
 
   const handleSave = () => {
     if (!validate()) return;
-    onSave({ name, pageSize, cardSize, slots, guidelines, basePdfId });
+    const hasCricut = basePdfId !== undefined || cricutUrl !== undefined;
+    onSave({ name, pageSize, cardSize, slots, guidelines, cricut: hasCricut ? { basePdfId, cricutUrl } : undefined });
   };
 
   const handleAddSlot = () => {
@@ -302,10 +304,10 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
         )}
       </Box>
 
-      <Box label="Base PDF (optional)">
+      <Box label="Cricut Template (optional)">
         <div className="form-row">
           <Select
-            label="Select PDF"
+            label="Base PDF"
             value={basePdfId ?? ""}
             onChange={(v) => setBasePdfId(v || undefined)}
             options={basePdfOptions}
@@ -314,6 +316,14 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
             <span>Upload New</span>
             <input ref={fileInputRef} type="file" accept="application/pdf" onChange={handleFileUpload} />
           </label>
+        </div>
+        <div className="form-row">
+          <Input
+            label="Cricut Link"
+            value={cricutUrl ?? ""}
+            onChange={(v) => setCricutUrl(v.trim() || undefined)}
+            placeholder="https://design.cricut.com/..."
+          />
         </div>
       </Box>
 

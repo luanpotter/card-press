@@ -29,14 +29,15 @@ export function Config() {
   const [showFactoryResetModal, setShowFactoryResetModal] = useState(false);
   const [showLoadImagesModal, setShowLoadImagesModal] = useState(false);
 
+  const usedImageIds = new Set(sessions.flatMap((s) => s.cards.map((c) => c.imageId)));
+  const usedPdfIds = new Set(templates.map((t) => t.cricut?.basePdfId).filter((id) => id !== undefined));
+
   const handlePruneImages = () => {
-    const usedIds = new Set(sessions.flatMap((s) => s.cards.map((c) => c.imageId)));
-    pruneImages(usedIds);
+    pruneImages(usedImageIds);
   };
 
   const handlePrunePdfs = () => {
-    const usedIds = new Set(templates.map((t) => t.basePdfId).filter((id): id is string => id !== undefined));
-    prunePdfs(usedIds);
+    prunePdfs(usedPdfIds);
   };
 
   const handleDeleteAllTemplates = () => {
@@ -57,20 +58,18 @@ export function Config() {
     loadDefaultTemplates();
   };
 
-  const usedPdfCount = new Set(templates.map((t) => t.basePdfId).filter((id) => id !== undefined)).size;
-  const unusedPdfCount = pdfs.length - usedPdfCount;
+  const unusedPdfCount = pdfs.length - usedPdfIds.size;
   const pdfSize = pdfs.reduce((acc, p) => acc + p.data.length, 0);
 
-  const usedImageCount = new Set(sessions.flatMap((s) => s.cards.map((c) => c.imageId))).size;
-  const unusedImageCount = images.length - usedImageCount;
+  const unusedImageCount = images.length - usedImageIds.size;
   const imageSize = images.reduce((acc, img) => acc + img.data.length, 0);
 
   const pdfStats = pdfsHydrated
-    ? `PDFs stored: ${String(pdfs.length)} (${String(usedPdfCount)} used, ${String(unusedPdfCount)} unused, ${formatBytes(pdfSize)})`
+    ? `PDFs stored: ${String(pdfs.length)} (${String(usedPdfIds.size)} used, ${String(unusedPdfCount)} unused, ${formatBytes(pdfSize)})`
     : "[loading]";
 
   const imageStats = imagesHydrated
-    ? `Images stored: ${String(images.length)} (${String(usedImageCount)} used, ${String(unusedImageCount)} unused, ${formatBytes(imageSize)})`
+    ? `Images stored: ${String(images.length)} (${String(usedImageIds.size)} used, ${String(unusedImageCount)} unused, ${formatBytes(imageSize)})`
     : "[loading]";
 
   return (

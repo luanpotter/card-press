@@ -1,4 +1,4 @@
-import type { Card, Session } from "@/types/session";
+import { DEFAULT_EMPTY_SLOT_COLOR, type Card, type Session } from "@/types/session";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -27,7 +27,11 @@ export const useSessionStore = create<SessionState>()(
       addSession: (session) => {
         const id = crypto.randomUUID();
         set((state) => {
-          const newSessions = [...state.sessions, { ...session, id, cards: [] }];
+          // Defaults first, but it can be cleared by an explicit undefined.
+          const newSessions = [
+            ...state.sessions,
+            { emptySlotColor: DEFAULT_EMPTY_SLOT_COLOR, ...session, id, cards: [] },
+          ];
           // If this is the first session, make it active
           const activeId = state.activeSessionId ?? id;
           return { sessions: newSessions, activeSessionId: activeId };

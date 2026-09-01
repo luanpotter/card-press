@@ -1,6 +1,7 @@
 import { PDFDocument, type PDFPage, rgb } from "pdf-lib";
 import type { Template, Slot, Guideline } from "@/types/template";
 import type { Card, CardBacks } from "@/types/session";
+import type { Rgb } from "@/types/color";
 import { MirrorAxis, PAGE_DIMENSIONS } from "@/types/page";
 
 // Convert mm to PDF points (1 inch = 72 points, 1 inch = 25.4mm)
@@ -25,6 +26,8 @@ interface GeneratePdfOptions {
   signal?: AbortSignal;
   /** When provided, the backs PDF is generated instead of the fronts one */
   backs?: Omit<CardBacks, "enabled"> | undefined;
+  /** Color painted over every slot left without a card; unset paints nothing */
+  emptySlotColor?: Rgb | undefined;
 }
 
 interface ExpandedCard {
@@ -126,6 +129,24 @@ async function convertWebpToPng(webpDataUrl: string): Promise<string> {
 }
 
 /**
+ * Where a slot lands on the page, in PDF points.
+ * The PDF origin is bottom-left, while slots are measured from the top of the page in mm.
+ */
+function slotRect(
+  slot: Slot,
+  cardWidth: number,
+  cardHeight: number,
+  pageHeight: number
+): { x: number; y: number; width: number; height: number } {
+  return {
+    x: slot.x * MM_TO_POINTS,
+    y: (pageHeight - slot.y - cardHeight) * MM_TO_POINTS,
+    width: cardWidth * MM_TO_POINTS,
+    height: cardHeight * MM_TO_POINTS,
+  };
+}
+
+/**
  * Draw an image on a PDF page at the specified slot position, possibly mirrorer.
  * For flipped pages (backs), we render the images themselves mirrored so they reverse back
  * correctly when the whole page is mirrored for the slots and cut lines.
@@ -156,14 +177,7 @@ async function drawCardOnPage(
   const imageBytes = dataUrlToBytes(finalImageData);
   const image = imageType === "png" ? await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
 
-  // Convert mm to points
-  const x = slot.x * MM_TO_POINTS;
-  const width = cardWidth * MM_TO_POINTS;
-  const height = cardHeight * MM_TO_POINTS;
-
-  // PDF coordinate system has origin at bottom-left, so flip Y
-  // slot.y is from top in mm, convert to bottom-left origin
-  const y = (pageHeight - slot.y - cardHeight) * MM_TO_POINTS;
+  const { x, y, width, height } = slotRect(slot, cardWidth, cardHeight, pageHeight);
 
   // A negative size draws the image reversed, from the opposite edge of the same slot
   const reverseVertically = mirror === MirrorAxis.Vertical;
@@ -174,6 +188,28 @@ async function drawCardOnPage(
     y: reverseVertically ? y + height : y,
     width: reverseHorizontally ? -width : width,
     height: reverseVertically ? -height : height,
+  });
+}
+
+/**
+ * Paint a slot that holds no card, covering whatever the base PDF draws there.
+ * No color paints nothing, leaving the base template visible.
+ */
+function drawEmptySlot(
+  page: PDFPage,
+  slot: Slot,
+  cardWidth: number,
+  cardHeight: number,
+  pageHeight: number,
+  color: Rgb | undefined
+): void {
+  if (!color) {
+    return;
+  }
+
+  page.drawRectangle({
+    ...slotRect(slot, cardWidth, cardHeight, pageHeight),
+    color: rgb(color.r / 255, color.g / 255, color.b / 255),
   });
 }
 
@@ -217,6 +253,7 @@ export async function generatePdf({
   onProgress,
   signal,
   backs,
+  emptySlotColor,
 }: GeneratePdfOptions): Promise<Uint8Array> {
   const expandedCards = expandCards(cards);
 
@@ -275,8 +312,8 @@ export async function generatePdf({
     }
     drawGuidelines(page, template.guidelines, pageDimensions.width, pageDimensions.height);
 
-    // Place each card in its slot
-    for (let slotIndex = 0; slotIndex < pageCards.length; slotIndex++) {
+    // Place each card in its slot; slots left over are filled instead
+    for (let slotIndex = 0; slotIndex < slotsPerPage; slotIndex++) {
       // Check for cancellation
       if (signal?.aborted) {
         throw new DOMException("PDF generation cancelled", "AbortError");
@@ -285,21 +322,24 @@ export async function generatePdf({
       const expandedCard = pageCards[slotIndex];
       const slot = template.slots[slotIndex];
 
-      if (!expandedCard || !slot) continue;
+      if (!slot) continue;
 
-      // Determine which image to use (front or back)
-      let imageIdToUse: string;
-      if (backs) {
-        // For backs: use card-specific back, fall back to default, or skip if none
-        imageIdToUse = expandedCard.cardBackId ?? backs.defaultBackId ?? "";
-        if (!imageIdToUse) continue;
-      } else {
-        imageIdToUse = expandedCard.imageId;
-      }
+      // Determine which image to use (front or back); backs fall back to the session default.
+      // A slot with no card has no back either, lest the backs PDF print backs for missing fronts.
+      const imageIdToUse =
+        expandedCard && (backs ? (expandedCard.cardBackId ?? backs.defaultBackId) : expandedCard.imageId);
 
-      const image = getImage(imageIdToUse);
+      const image = imageIdToUse ? getImage(imageIdToUse) : undefined;
       if (!image) {
-        // Image not found, skip this slot
+        // No card (or no image) for this slot: paint over the base template instead
+        drawEmptySlot(
+          page,
+          slot,
+          template.cardSize.width,
+          template.cardSize.height,
+          pageDimensions.height,
+          emptySlotColor
+        );
         continue;
       }
 

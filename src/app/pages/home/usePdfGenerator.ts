@@ -102,6 +102,7 @@ export function usePdfGenerator({
             cards,
             getImage,
             getPdf,
+            emptySlotColor: session.emptySlotColor,
             onProgress: (current, total) => setPdfProgress({ current, total }),
             signal: abortController.signal,
           });
@@ -126,7 +127,7 @@ export function usePdfGenerator({
         }
       })();
     }, 0);
-  }, [template, cards, getImage, getPdf, previewUrl]);
+  }, [template, cards, getImage, getPdf, previewUrl, session]);
 
   const handleGenerate = useCallback(() => {
     if (!template || cards.length === 0) return;
@@ -147,6 +148,7 @@ export function usePdfGenerator({
             cards,
             getImage,
             getPdf,
+            emptySlotColor: session.emptySlotColor,
             onProgress: (current, total) => setPdfProgress({ current, total }),
             signal: abortController.signal,
           });
@@ -164,7 +166,7 @@ export function usePdfGenerator({
         }
       })();
     }, 0);
-  }, [template, cards, getImage, getPdf, session.name]);
+  }, [template, cards, getImage, getPdf, session]);
 
   const handleGenerateBacks = useCallback(() => {
     if (!template || cards.length === 0) return;
@@ -188,6 +190,7 @@ export function usePdfGenerator({
             getImage,
             getPdf,
             backs: { defaultBackId, mirror },
+            emptySlotColor: session.emptySlotColor,
             onProgress: (current, total) => setPdfProgress({ current, total }),
             signal: abortController.signal,
           });

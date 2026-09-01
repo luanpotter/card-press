@@ -100,16 +100,30 @@ export function Templates() {
       render: (template) => template.slots.length,
     },
     {
-      key: "basePdf",
-      header: "Base PDF",
+      key: "cricutTemplate",
+      header: "Cricut Template",
       render: (template) => {
-        if (!template.basePdfId) return "—";
-        const pdf = getPdf(template.basePdfId);
-        if (!pdf) return "—";
+        const pdf = template.cricut?.basePdfId ? getPdf(template.cricut.basePdfId) : undefined;
+        if (!pdf && !template.cricut?.cricutUrl) return "—";
         return (
-          <a href={pdf.data} download={pdf.name} onClick={(e) => e.stopPropagation()} title="Download base PDF">
-            {pdf.name}
-          </a>
+          <div className="actions">
+            {pdf && (
+              <a href={pdf.data} download={pdf.name} onClick={(e) => e.stopPropagation()} title="Download base PDF">
+                PDF
+              </a>
+            )}
+            {template.cricut?.cricutUrl && (
+              <a
+                href={template.cricut.cricutUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title="Open template on Cricut"
+              >
+                Cricut
+              </a>
+            )}
+          </div>
         );
       },
     },

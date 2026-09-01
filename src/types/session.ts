@@ -1,3 +1,4 @@
+import { WHITE, type Rgb } from "@/types/color";
 import { MirrorAxis } from "@/types/page";
 
 export interface Card {
@@ -22,12 +23,20 @@ export const DEFAULT_CARD_BACKS: CardBacks = {
   mirror: MirrorAxis.Horizontal,
 };
 
+// Default to white to not waste ink (prints nothing).
+export const DEFAULT_EMPTY_SLOT_COLOR: Rgb = WHITE;
+
 export interface Session {
   id: string;
   name: string;
   templateId: string;
   cards: Card[];
   cardBacks?: CardBacks;
+  /**
+   * Color used to paint solid rectangles over empty slots.
+   * Unset disables it, if the backing PDF template showing is the intent.
+   */
+  emptySlotColor?: Rgb | undefined;
 }
 
 export function getCardBacks(session: Session): CardBacks {

@@ -16,7 +16,7 @@ import { ImportCardsModal } from "@/app/pages/home/ImportCardsModal";
 import { SessionModal } from "@/app/pages/sessions/SessionModal";
 import { usePdfGenerator } from "@/app/pages/home/usePdfGenerator";
 import type { FetchResult } from "@/sources/index";
-import { getCardBacks, type Card } from "@/types/session";
+import { getCardBacks, type Card, type Session } from "@/types/session";
 
 type ViewMode = "list" | "images";
 
@@ -386,7 +386,7 @@ export function Home() {
 
   const cardBacks = getCardBacks(activeSession);
 
-  const handleSaveSession = (updates: { name: string; templateId: string }) => {
+  const handleSaveSession = (updates: Omit<Session, "id" | "cards">) => {
     updateSession(activeSession.id, updates);
     setShowEditSession(false);
   };

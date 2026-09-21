@@ -138,6 +138,15 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     }),
   },
   {
+    name: "Letter - 7x12cm 2x2",
+    ...gridSlots({
+      pageSize: PageSize.Letter,
+      cardSize: { width: 70, height: 120 },
+      cols: 2,
+      rows: 2,
+    }),
+  },
+  {
     name: "Letter / Cricut - MTG 2x3",
     pageSize: PageSize.Letter,
     cardSize: mtgSize,

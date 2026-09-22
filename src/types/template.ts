@@ -144,6 +144,7 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
       cardSize: { width: 70, height: 120 },
       cols: 2,
       rows: 2,
+      includeGuidelines: false,
     }),
   },
   {
@@ -195,11 +196,13 @@ function gridSlots({
   cardSize,
   cols,
   rows,
+  includeGuidelines = true,
 }: {
   pageSize: PageSize;
   cardSize: Dimension;
   cols: number;
   rows: number;
+  includeGuidelines?: boolean;
 }): {
   pageSize: PageSize;
   cardSize: Dimension;
@@ -217,7 +220,7 @@ function gridSlots({
     pageSize,
     cardSize,
     slots: generateGrid(gridConfig),
-    guidelines: generateGridGuidelines(gridConfig),
+    guidelines: includeGuidelines ? generateGridGuidelines(gridConfig) : [],
   };
 }
 

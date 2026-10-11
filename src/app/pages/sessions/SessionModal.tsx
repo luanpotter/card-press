@@ -4,7 +4,15 @@ import { Modal } from "@/app/components/Modal";
 import { Select } from "@/app/components/Select";
 import { useTemplateStore } from "@/app/store/templates";
 import { RGB_HEX_PLACEHOLDER, rgbFromHex, rgbToHex } from "@/types/color";
-import { DEFAULT_EMPTY_SLOT_COLOR, DEFAULT_PRINT_DPI, getPrintDpi, type Session } from "@/types/session";
+import {
+  DEFAULT_EMPTY_SLOT_COLOR,
+  DEFAULT_PRINT_DPI,
+  DEFAULT_SVG_OUTPUT,
+  getPrintDpi,
+  getSvgOutput,
+  SvgOutput,
+  type Session,
+} from "@/types/session";
 import { MAX_PAGE_MEGAPIXELS, pageMegapixels } from "@/utils/printResolution";
 import { useState } from "react";
 
@@ -29,6 +37,7 @@ export function SessionModal({ session, existingNames, onSave, onClose }: Sessio
     return color ? rgbToHex(color) : "";
   });
   const [printDpi, setPrintDpi] = useState(String(session ? getPrintDpi(session) : DEFAULT_PRINT_DPI));
+  const [svgOutput, setSvgOutput] = useState(session ? getSvgOutput(session) : DEFAULT_SVG_OUTPUT);
 
   const [errors, setErrors] = useState<{
     name?: string;
@@ -68,7 +77,7 @@ export function SessionModal({ session, existingNames, onSave, onClose }: Sessio
 
   const handleSave = () => {
     if (!validate()) return;
-    onSave({ name: name.trim(), templateId, emptySlotColor: parsedColor, printDpi: parsedDpi });
+    onSave({ name: name.trim(), templateId, emptySlotColor: parsedColor, printDpi: parsedDpi, svgOutput });
   };
 
   const footer = (
@@ -119,6 +128,21 @@ export function SessionModal({ session, existingNames, onSave, onClose }: Sessio
           {MAX_PAGE_MEGAPIXELS} MP.
         </p>
       )}
+
+      <Select
+        label="SVG Output"
+        value={svgOutput}
+        onChange={(value) => setSvgOutput(value as SvgOutput)}
+        options={[
+          { value: SvgOutput.RasterResvg, label: "Raster (resvg)" },
+          { value: SvgOutput.RasterBrowser, label: "Raster (browser)" },
+          { value: SvgOutput.Vector, label: "Vector" },
+        ]}
+      />
+      <p className="muted" style={{ marginTop: "4px" }}>
+        How to handle SVGs - either embeded to the PDF, or raster it (using resvg library or the browser built-in; this
+        might affect how fonts are loaded and printer resolution).
+      </p>
 
       {templates.length === 0 && (
         <p className="danger" style={{ marginTop: "8px" }}>

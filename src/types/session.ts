@@ -29,6 +29,19 @@ export const DEFAULT_EMPTY_SLOT_COLOR: Rgb = WHITE;
 // At or above the grid most printer drivers resample images to (300/600, 360/720 on Epson).
 export const DEFAULT_PRINT_DPI = 600;
 
+/** How SVG images go into the PDF */
+export enum SvgOutput {
+  /** Rendered to pixels by resvg, the same in every browser */
+  RasterResvg = "raster-resvg",
+  /** Rendered to pixels by the browser, with the system fonts */
+  RasterBrowser = "raster-browser",
+  /** Kept as vector graphics */
+  Vector = "vector",
+}
+
+// The only output built so far; resvg takes over once it is
+export const DEFAULT_SVG_OUTPUT = SvgOutput.RasterBrowser;
+
 export interface Session {
   id: string;
   name: string;
@@ -42,6 +55,7 @@ export interface Session {
   emptySlotColor?: Rgb | undefined;
   /** Resolution card images are rendered at, in pixels per inch of the printed card */
   printDpi?: number | undefined;
+  svgOutput?: SvgOutput | undefined;
 }
 
 export function getCardBacks(session: Session): CardBacks {
@@ -50,4 +64,8 @@ export function getCardBacks(session: Session): CardBacks {
 
 export function getPrintDpi(session: Session): number {
   return session.printDpi ?? DEFAULT_PRINT_DPI;
+}
+
+export function getSvgOutput(session: Session): SvgOutput {
+  return session.svgOutput ?? DEFAULT_SVG_OUTPUT;
 }

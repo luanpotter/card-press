@@ -10,11 +10,11 @@ import {
   rgb,
 } from "pdf-lib";
 import type { Template, Slot, Guideline } from "@/types/template";
-import type { Card, CardBacks } from "@/types/session";
+import { SvgOutput, type Card, type CardBacks } from "@/types/session";
 import { type Rgb, WHITE } from "@/types/color";
 import type { Dimension } from "@/types/dimension";
 import { MirrorAxis, PAGE_DIMENSIONS } from "@/types/page";
-import { decodeImage, isDecodable, mimeTypeOf } from "@/utils/decodeImage";
+import { decodeImage, ImageFormat, imageFormatOf, isDecodable, mimeTypeOf } from "@/utils/decodeImage";
 import { toPrintRaster } from "@/utils/printRaster";
 import { targetPixels } from "@/utils/printResolution";
 
@@ -44,6 +44,7 @@ interface GeneratePdfOptions {
   emptySlotColor?: Rgb | undefined;
   /** Resolution every card image is rendered at, in pixels per printed inch */
   printDpi: number;
+  svgOutput: SvgOutput;
 }
 
 interface ExpandedCard {
@@ -147,10 +148,14 @@ async function embedCardImage(
   pdfDoc: PDFDocument,
   image: StoredImage,
   sizePx: Dimension,
-  background: Rgb
+  background: Rgb,
+  svgOutput: SvgOutput
 ): Promise<PDFRef> {
   if (!isDecodable(image.data)) {
     throw new Error(`Cannot print "${image.name}": ${mimeTypeOf(image.data)} images are not supported`);
+  }
+  if (imageFormatOf(image.data) === ImageFormat.Svg && svgOutput !== SvgOutput.RasterBrowser) {
+    throw new Error(`Cannot print "${image.name}": SVG output "${svgOutput}" is not supported yet`);
   }
 
   const pixels = await toPrintRaster(await decodeImage(image.data, sizePx), sizePx, background);
@@ -267,6 +272,7 @@ export async function generatePdf({
   backs,
   emptySlotColor,
   printDpi,
+  svgOutput,
 }: GeneratePdfOptions): Promise<Uint8Array> {
   const expandedCards = expandCards(cards);
 
@@ -382,7 +388,7 @@ export async function generatePdf({
       // Each image is embedded once, however many cards and slots show it
       let pdfImage = embeddedImages.get(imageIdToUse);
       if (!pdfImage) {
-        pdfImage = await embedCardImage(pdfDoc, image, cardSizePx, cardBackground);
+        pdfImage = await embedCardImage(pdfDoc, image, cardSizePx, cardBackground, svgOutput);
         embeddedImages.set(imageIdToUse, pdfImage);
       }
 

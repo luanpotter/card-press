@@ -349,6 +349,8 @@ label.toggle {
 .image-picker-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  /* Rows as tall as their cards; auto rows shrink to fit the fixed height and cards overflow onto the next */
+  grid-auto-rows: max-content;
   gap: 8px;
   height: 100%;
   overflow-y: auto;

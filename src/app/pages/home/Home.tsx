@@ -18,7 +18,7 @@ import { SessionModal } from "@/app/pages/sessions/SessionModal";
 import { usePdfGenerator } from "@/app/pages/home/usePdfGenerator";
 import type { FetchResult } from "@/sources/index";
 import { getCardBacks, type Card, type Session } from "@/types/session";
-import { cardName, IMAGE_ACCEPT, isImageFile, readDataUrl } from "@/utils/imageFiles";
+import { cardName, IMAGE_ACCEPT, readDataUrl, validateImageFiles } from "@/utils/imageFiles";
 
 type ViewMode = "list" | "images";
 
@@ -72,6 +72,7 @@ export function Home() {
   const [pastedImage, setPastedImage] = useState<string | null>(null);
   const [droppedImageName, setDroppedImageName] = useState<string | undefined>(undefined);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [dropRejection, setDropRejection] = useState<string>();
   const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
@@ -142,14 +143,14 @@ export function Home() {
 
     const handleDrop = (e: DragEvent) => {
       if (!e.dataTransfer?.types.includes("Files")) return;
+      setIsDraggingOver(false);
+      // Dropped on a modal's dropzone, which took the files
+      if (e.defaultPrevented) return;
       e.preventDefault();
       e.stopPropagation();
-      setIsDraggingOver(false);
 
-      const files = e.dataTransfer.files;
-      if (files.length === 0) return;
-
-      const imageFiles = Array.from(files).filter(isImageFile);
+      const { images: imageFiles, rejection } = validateImageFiles(e.dataTransfer.files);
+      setDropRejection(rejection);
       if (imageFiles.length === 0) return;
 
       const session = getActiveSession();
@@ -511,6 +512,16 @@ export function Home() {
           confirmLabel="OK"
           onConfirm={clearPdfError}
           onClose={clearPdfError}
+        />
+      )}
+
+      {dropRejection && (
+        <ConfirmModal
+          title="Unsupported Files"
+          message={dropRejection}
+          confirmLabel="OK"
+          onConfirm={() => setDropRejection(undefined)}
+          onClose={() => setDropRejection(undefined)}
         />
       )}
 

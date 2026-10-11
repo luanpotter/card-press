@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 import { Button } from "@/app/components/Button";
-import { IMAGE_ACCEPT, isImageFile } from "@/utils/imageFiles";
+import { IMAGE_ACCEPT, validateImageFiles } from "@/utils/imageFiles";
 
 interface DropzoneProps {
-  /** Called with the image files dropped or chosen; other files are left out */
+  /** Called with the image files dropped or chosen; other files are left out, and named in the zone */
   onFiles: (files: File[]) => void;
   /** Text shown above the file chooser */
   prompt: string;
@@ -16,10 +16,12 @@ interface DropzoneProps {
  */
 export function Dropzone({ onFiles, prompt, multiple = false }: DropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [rejection, setRejection] = useState<string>();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const takeFiles = (files: FileList | null) => {
-    const images = Array.from(files ?? []).filter(isImageFile);
+    const { images, rejection } = validateImageFiles(files ?? []);
+    setRejection(rejection);
     if (images.length > 0) {
       onFiles(images);
     }
@@ -36,6 +38,7 @@ export function Dropzone({ onFiles, prompt, multiple = false }: DropzoneProps) {
   };
 
   const handleDrop = (e: React.DragEvent) => {
+    // Also tells page-wide drop handlers that these files are taken
     e.preventDefault();
     setIsDragging(false);
     takeFiles(e.dataTransfer.files);
@@ -55,6 +58,7 @@ export function Dropzone({ onFiles, prompt, multiple = false }: DropzoneProps) {
       onDrop={handleDrop}
     >
       <p>{prompt}</p>
+      {rejection && <p className="danger">{rejection}</p>}
       <p className="muted">or</p>
       <Button onClick={() => fileInputRef.current?.click()}>{multiple ? "Choose Files" : "Choose File"}</Button>
       <input

@@ -6,11 +6,27 @@ import { DECODABLE_TYPES } from "@/utils/decodeImage";
  */
 
 /** File input `accept` attribute for every image type we can print */
-export const IMAGE_ACCEPT = [...DECODABLE_TYPES].join(",");
+export const IMAGE_ACCEPT = [...DECODABLE_TYPES.keys()].join(",");
 
 /** Whether a file (or a clipboard / drag item) holds an image we can print */
 export function isImageFile(file: { type: string }): boolean {
   return DECODABLE_TYPES.has(file.type);
+}
+
+/**
+ * Split files into the images we can print and the rest.
+ * The rest come with a message naming them, to show the user.
+ */
+export function validateImageFiles(files: Iterable<File>): { images: File[]; rejection: string | undefined } {
+  const all = Array.from(files);
+  const images = all.filter(isImageFile);
+  const rejected = all.filter((file) => !isImageFile(file)).map((file) => `"${file.name}"`);
+  const formats = [...new Set(DECODABLE_TYPES.values())].join(", ");
+
+  return {
+    images,
+    rejection: rejected.length > 0 ? `Cannot use ${rejected.join(", ")}: supported formats are ${formats}` : undefined,
+  };
 }
 
 /** Read a file into a data URL, which is how images and PDFs are stored */

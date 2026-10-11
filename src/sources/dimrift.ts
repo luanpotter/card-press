@@ -1,13 +1,14 @@
 import { registerSource, type ParsedCard, type FetchResult } from "@/sources/index";
 
 // Dim Rift card data structure
-interface DimRiftCard {
+export interface DimRiftCard {
   key: string;
   name: string;
-  type: { key: string; desc: string };
-  faction?: { key: string; desc: string };
-  extra?: { key: string; desc: string };
-  rank?: number;
+  kind: "core" | "token" | "reference";
+  // Reference cards have no extra fields
+  type?: { key: string; text: string };
+  faction?: { key: string; text: string };
+  fabled?: boolean;
   subType?: string;
 }
 
@@ -49,15 +50,15 @@ function getCardImageUrl(key: string): string {
  * Parse a bracket filter expression and return matching cards
  * All tokens within a bracket are ANDed together
  * Examples:
- *   [all] - all cards in the pool
- *   [men] - all Men faction cards
- *   [men extra] - all Men AND extra deck cards
- *   [fey -artifacts] - all Fey cards AND NOT artifacts
- *   [fey extra monument] - all Fey AND extra deck AND monument cards
- *   [rank1] or [r1] - all rank 1 cards
+ *   [all] - all core cards (tokens and references only if explicit, as in [all token])
+ *   [men] - all Men faction core cards
+ *   [men fabled] - all Men AND fabled cards
+ *   [fey -artifact] - all Fey cards AND NOT artifacts
+ *   [fey fabled monument] - all Fey AND fabled AND monument cards
  *   [creature] - all creatures
+ *   [token] [reference] - token or reference cards
  */
-function parseFilterExpression(expr: string, cards: DimRiftCard[]): DimRiftCard[] {
+export function parseFilterExpression(expr: string, cards: DimRiftCard[]): DimRiftCard[] {
   const tokens = expr.toLowerCase().trim().split(/\s+/);
 
   // Parse tokens into include/exclude filters
@@ -72,108 +73,40 @@ function parseFilterExpression(expr: string, cards: DimRiftCard[]): DimRiftCard[
     }
   }
 
-  // Helper to normalize plurals and aliases
-  function normalize(token: string): string[] {
-    const aliases: Record<string, string[]> = {
-      // Plurals -> singular
-      artifacts: ["artifact"],
-      creatures: ["creature"],
-      monuments: ["monument"],
-      // Type aliases
-      equip: ["equipment"],
-      equipment: ["equipment"],
-      equips: ["equipment"],
-      scroll: ["scroll"],
-      scrolls: ["scroll"],
-      vehicle: ["vehicle"],
-      vehicles: ["vehicle"],
-      // Extra deck
-      extra: ["extra"],
-      extradeck: ["extra"],
-      main: ["main"],
-      maindeck: ["main"],
-      // Ranks
-      r0: ["rank0"],
-      r1: ["rank1"],
-      r2: ["rank2"],
-      r3: ["rank3"],
-      rank0: ["rank0"],
-      rank1: ["rank1"],
-      rank2: ["rank2"],
-      rank3: ["rank3"],
-      // Subtypes
-      spirit: ["spirit"],
-      spirits: ["spirit"],
-      mercenary: ["mercenary"],
-      mercenaries: ["mercenary"],
-      construct: ["construct"],
-      constructs: ["construct"],
-      monster: ["monster"],
-      monsters: ["monster"],
-      beast: ["beast"],
-      beasts: ["beast"],
-      human: ["human"],
-      humans: ["human"],
-      ally: ["ally"],
-      allies: ["ally"],
-      manifestation: ["manifestation"],
-      manifestations: ["manifestation"],
-    };
-    return aliases[token] ?? [token];
-  }
-
   // Filter cards
   return cards.filter((card) => {
+    // Tokens and reference cards only match filters naming their kind, as in [men token]
+    if (card.kind !== "core" && !includes.has(card.kind)) {
+      return false;
+    }
+
     // Build card attributes for matching
     const attrs = new Set<string>();
 
     // 'all' matches everything
     attrs.add("all");
+    attrs.add(card.kind);
 
     // Type
-    attrs.add(card.type.key);
+    if (card.type?.key) {
+      attrs.add(card.type.key);
+    }
 
     // Faction
     if (card.faction?.key) {
       attrs.add(card.faction.key);
     }
 
-    // Extra deck status
-    if (card.extra?.key === "true") {
-      attrs.add("extra");
-    } else {
-      attrs.add("main");
-    }
-
-    // Rank
-    const rank = card.rank ?? 0;
-    attrs.add(`rank${String(rank)}`);
+    // Fabled status
+    attrs.add(card.fabled ? "fabled" : "main");
 
     // Subtype
     if (card.subType) {
       attrs.add(card.subType.toLowerCase());
     }
 
-    // Check includes: card must match ALL include tokens (AND logic)
-    for (const include of includes) {
-      const normalized = normalize(include);
-      const matchesThisToken = normalized.some((n) => attrs.has(n));
-      if (!matchesThisToken) {
-        return false;
-      }
-    }
-
-    // Check excludes: card must NOT match any normalized token from excludes
-    for (const exclude of excludes) {
-      const normalized = normalize(exclude);
-      for (const n of normalized) {
-        if (attrs.has(n)) {
-          return false;
-        }
-      }
-    }
-
-    return true;
+    // The card must match ALL include tokens (AND logic), and none of the excludes
+    return [...includes].every((include) => attrs.has(include)) && ![...excludes].some((exclude) => attrs.has(exclude));
   });
 }
 
@@ -229,8 +162,8 @@ export interface DimRiftParsedEntry {
  *   Card Name           -> 1x card by exact/fuzzy name
  *   2x card_key         -> 2x card by key
  *   2x [men]            -> 2x each card from Men faction
- *   [fey -artifacts]    -> 1x each non-artifact Fey card
- *   [fey extra monument] [wynn extra monument] -> all Fey or Wynn extra monuments
+ *   [fey -artifact]     -> 1x each non-artifact Fey card
+ *   [fey fabled monument] [men fabled monument] -> all Fey or Men fabled monuments
  */
 export function parseDimRiftCardList(text: string): ParsedCard[] {
   // We need the cards to resolve filters, but parse is sync.
@@ -306,6 +239,9 @@ async function downloadImageAsDataUrl(url: string): Promise<string> {
   });
 }
 
+/** A card list entry, resolved to a card or to why it could not be */
+type ResolvedEntry = { key: string; name: string; count: number } & ({ card: DimRiftCard } | { error: string });
+
 /**
  * Fetch cards from Dim Rift, resolving filters
  */
@@ -318,8 +254,8 @@ export async function fetchCardsFromDimRift(
   // Fetch all card data first
   const allCards = await fetchAllCards();
 
-  // Resolve parsed entries to actual cards
-  const resolvedCards: { card: DimRiftCard; count: number }[] = [];
+  // Resolve parsed entries to actual cards, or to why they could not be
+  const resolvedCards: ResolvedEntry[] = [];
 
   for (const entry of parsedCards) {
     if (!entry.name) continue;
@@ -330,43 +266,38 @@ export async function fetchCardsFromDimRift(
       const filtered = parseFilterExpression(filterExpr, allCards);
 
       for (const card of filtered) {
-        resolvedCards.push({ card, count: entry.count });
+        resolvedCards.push({ key: card.key, name: card.name, count: entry.count, card });
       }
     } else {
       // Regular card lookup
       const result = findCard(entry.name, allCards);
+      const errorKey = `__ERROR__:${entry.name}`;
       if (result.status === "found") {
-        resolvedCards.push({ card: result.card, count: entry.count });
+        resolvedCards.push({ key: result.card.key, name: result.card.name, count: entry.count, card: result.card });
       } else if (result.status === "ambiguous") {
         // Ambiguous match - create error entry with match info
         const matchNames = result.matches.slice(0, 5).map((c) => c.name);
         const suffix = result.matches.length > 5 ? `, +${String(result.matches.length - 5)} more` : "";
         resolvedCards.push({
-          card: {
-            key: `__ERROR__:${entry.name}`,
-            name: entry.name,
-            type: { key: "ambiguous", desc: `Ambiguous: matches ${matchNames.join(", ")}${suffix}` },
-          },
+          key: errorKey,
+          name: entry.name,
           count: entry.count,
+          error: `Ambiguous: matches ${matchNames.join(", ")}${suffix}`,
         });
       } else {
-        // Card not found - we'll handle this in the results
-        resolvedCards.push({
-          card: { key: `__ERROR__:${entry.name}`, name: entry.name, type: { key: "not-found", desc: "Not found" } },
-          count: entry.count,
-        });
+        resolvedCards.push({ key: errorKey, name: entry.name, count: entry.count, error: "Card not found" });
       }
     }
   }
 
   // Deduplicate by key, summing counts
-  const cardMap = new Map<string, { card: DimRiftCard; count: number }>();
-  for (const { card, count } of resolvedCards) {
-    const existing = cardMap.get(card.key);
+  const cardMap = new Map<string, ResolvedEntry>();
+  for (const entry of resolvedCards) {
+    const existing = cardMap.get(entry.key);
     if (existing) {
-      existing.count += count;
+      existing.count += entry.count;
     } else {
-      cardMap.set(card.key, { card, count });
+      cardMap.set(entry.key, { ...entry });
     }
   }
 
@@ -383,28 +314,16 @@ export async function fetchCardsFromDimRift(
     const entry = uniqueCards[i];
     if (!entry) continue;
 
-    const { card, count } = entry;
+    const { name, count } = entry;
 
-    onProgress?.(i + 1, uniqueCards.length, card.name);
+    onProgress?.(i + 1, uniqueCards.length, name);
 
-    // Check if it's an error placeholder
-    if (card.type.key === "not-found") {
-      results.push({
-        name: card.name,
-        count,
-        error: "Card not found",
-      });
+    if ("error" in entry) {
+      results.push({ name, count, error: entry.error });
       continue;
     }
 
-    if (card.type.key === "ambiguous") {
-      results.push({
-        name: card.name,
-        count,
-        error: card.type.desc,
-      });
-      continue;
-    }
+    const { card } = entry;
 
     try {
       const imageUrl = getCardImageUrl(card.key);
@@ -440,8 +359,8 @@ registerSource({
   placeholder: `Clay Construct
 2x mud_construct
 [men]
-[fey -artifacts extra]
-[telur creature rank1]`,
+[fey -artifact fabled]
+[men creature -fabled]`,
   parse: parseDimRiftCardList,
   fetch: fetchCardsFromDimRift,
 });

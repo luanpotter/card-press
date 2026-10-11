@@ -163,6 +163,15 @@ interface CardRendering {
 }
 
 /**
+ * Compress bytes into a PDF FlateDecode stream (zlib format).
+ * The browser's native zlib is about 3× faster than pdf-lib's JavaScript one, for files 1-2% bigger.
+ */
+async function deflate(bytes: Uint8Array): Promise<Uint8Array> {
+  const compressed = new Blob([bytes as BlobPart]).stream().pipeThrough(new CompressionStream("deflate"));
+  return new Uint8Array(await new Response(compressed).arrayBuffer());
+}
+
+/**
  * Embed card pixels, at the print resolution unless kept at their own, as an opaque, losslessly compressed RGB image.
  * Printers resample images to their own grid and flatten transparency, both badly, so neither is left to them.
  */
@@ -173,13 +182,14 @@ async function embedPixels(
 ): Promise<EmbeddedCard> {
   const rgb = await toPrintRaster(pixels, sizePx, background, rasterScaling);
 
-  const stream = pdfDoc.context.flateStream(rgb.data, {
+  const stream = pdfDoc.context.stream(await deflate(rgb.data), {
     Type: "XObject",
     Subtype: "Image",
     Width: rgb.width,
     Height: rgb.height,
     BitsPerComponent: 8,
     ColorSpace: "DeviceRGB",
+    Filter: "FlateDecode",
   });
   // An image fills the unit square
   return { ref: pdfDoc.context.register(stream), width: 1, height: 1 };

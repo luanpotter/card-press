@@ -7,6 +7,7 @@ import { usePdfStore } from "@/app/store/pdfs";
 import { Box } from "@/app/components/Box";
 import { Button } from "@/app/components/Button";
 import { ConfirmModal } from "@/app/components/ConfirmModal";
+import { ErrorModal } from "@/app/components/ErrorModal";
 import { ProgressModal } from "@/app/components/ProgressModal";
 import { Table, type Column } from "@/app/components/Table";
 import { usePastedImage } from "@/app/components/usePastedImage";
@@ -506,24 +507,10 @@ export function Home() {
         />
       )}
 
-      {pdfError && (
-        <ConfirmModal
-          title="PDF Error"
-          message={pdfError}
-          confirmLabel="OK"
-          onConfirm={clearPdfError}
-          onClose={clearPdfError}
-        />
-      )}
+      {pdfError && <ErrorModal title="PDF Error" message={pdfError} onClose={clearPdfError} />}
 
       {dropRejection && (
-        <ConfirmModal
-          title="Unsupported Files"
-          message={dropRejection}
-          confirmLabel="OK"
-          onConfirm={() => setDropRejection(undefined)}
-          onClose={() => setDropRejection(undefined)}
-        />
+        <ErrorModal title="Unsupported Files" message={dropRejection} onClose={() => setDropRejection(undefined)} />
       )}
 
       {isDraggingOver && (

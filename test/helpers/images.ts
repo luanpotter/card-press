@@ -26,6 +26,11 @@ export function jpegBytes(width: number, height: number, rgb: [number, number, n
   return Uint8Array.from(data);
 }
 
+/** A square SVG, all of a half transparent red */
+export const SVG_BYTES = new TextEncoder().encode(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="red" fill-opacity="0.5"/></svg>'
+);
+
 /** Images as the app stores them */
 export function dataUrl(mime: string, bytes: Uint8Array): string {
   return `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;

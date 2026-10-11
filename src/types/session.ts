@@ -39,8 +39,8 @@ export enum SvgOutput {
   Vector = "vector",
 }
 
-// The only output built so far; resvg takes over once it is
-export const DEFAULT_SVG_OUTPUT = SvgOutput.RasterBrowser;
+// Consistent across browsers, and keeps masks and filters that a vector PDF would need transparency for
+export const DEFAULT_SVG_OUTPUT = SvgOutput.RasterResvg;
 
 export interface Session {
   id: string;

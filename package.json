@@ -16,6 +16,7 @@
     "format": "prettier --write src test"
   },
   "dependencies": {
+    "@resvg/resvg-wasm": "^2.6.2",
     "drop-in-css": "^0.1.9",
     "idb-keyval": "^6.2.2",
     "pdf-lib": "^1.17.1",

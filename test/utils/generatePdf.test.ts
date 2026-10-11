@@ -6,7 +6,7 @@ import { MirrorAxis, PageSize } from "@/types/page";
 import * as decoding from "@/utils/decodeImage";
 import { generatePdf } from "@/utils/generatePdf";
 import { decodeImage } from "@test/helpers/decodeImage";
-import { dataUrl, jpegBytes, pngBytes } from "@test/helpers/images";
+import { dataUrl, jpegBytes, pngBytes, SVG_BYTES } from "@test/helpers/images";
 import { inspectPdf } from "@test/helpers/inspectPdf";
 
 // The browser decoder needs createImageBitmap and a canvas
@@ -29,6 +29,7 @@ const IMAGES: Record<string, string> = {
   alpha: dataUrl("image/png", pngBytes(250, 350, [255, 0, 0, 128])),
   opaque: dataUrl("image/png", pngBytes(250, 350, [0, 255, 0, 255])),
   jpeg: dataUrl("image/jpeg", jpegBytes(2, 2, [0x33, 0x66, 0x99])),
+  svg: dataUrl("image/svg+xml", SVG_BYTES),
   // Browsers don't decode TIFFs
   tiff: dataUrl("image/tiff", new Uint8Array()),
 };
@@ -55,7 +56,8 @@ async function generate(
     getPdf: () => (basePdf ? { name: "base.pdf", data: basePdf } : undefined),
     backs,
     printDpi,
-    svgOutput: SvgOutput.RasterBrowser,
+    // The browser renderer needs a DOM
+    svgOutput: SvgOutput.RasterResvg,
   });
 }
 
@@ -123,9 +125,12 @@ describe("generatePdf", () => {
 
   test("renders every card at exactly the print resolution, whatever its source size", async () => {
     for (const printDpi of [300, 600]) {
-      // A 250×350 PNG and a 2×2 JPEG
-      const { pages } = await inspectPdf(await generate([card("opaque"), card("jpeg")], { printDpi }));
-      for (const image of pages[0]?.images ?? []) {
+      // A 250×350 PNG, a 2×2 JPEG and a 10×10 SVG
+      const { pages } = await inspectPdf(await generate([card("opaque"), card("jpeg"), card("svg")], { printDpi }));
+      const images = pages.flatMap((page) => page.images);
+
+      expect(images).toHaveLength(3);
+      for (const image of images) {
         expect(image.ppiX).toBeCloseTo(printDpi, 5);
         expect(image.ppiY).toBeCloseTo(printDpi, 5);
       }
@@ -133,10 +138,12 @@ describe("generatePdf", () => {
   });
 
   test("embeds cards as opaque, losslessly compressed RGB, with no transparency to flatten", async () => {
-    const { pages } = await inspectPdf(await generate([card("alpha"), card("jpeg")]));
+    const { pages } = await inspectPdf(await generate([card("alpha"), card("jpeg"), card("svg")]));
+    const images = pages.flatMap((page) => page.images);
 
-    expect(pages[0]?.transparency).toEqual([]);
-    for (const image of pages[0]?.images ?? []) {
+    expect(pages.flatMap((page) => page.transparency)).toEqual([]);
+    expect(images).toHaveLength(3);
+    for (const image of images) {
       expect(image).toMatchObject({ colorSpace: "DeviceRGB", bitsPerComponent: 8, filters: ["FlateDecode"] });
     }
   });

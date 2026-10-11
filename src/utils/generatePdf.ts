@@ -15,7 +15,8 @@ import { type Rgb, WHITE } from "@/types/color";
 import type { Dimension } from "@/types/dimension";
 import { MirrorAxis, PAGE_DIMENSIONS } from "@/types/page";
 import { decodeImage, ImageFormat, imageFormatOf, isDecodable, mimeTypeOf } from "@/utils/decodeImage";
-import { toPrintRaster } from "@/utils/printRaster";
+import { type RgbaPixels, toPrintRaster } from "@/utils/printRaster";
+import { renderSvg } from "@/utils/renderSvg";
 import { targetPixels } from "@/utils/printResolution";
 
 // Convert mm to PDF points (1 inch = 72 points, 1 inch = 25.4mm)
@@ -139,6 +140,29 @@ function slotRect(
 }
 
 /**
+ * The pixels of a card image, with SVGs rendered at the given size as the session asks
+ */
+async function cardPixels(
+  image: StoredImage,
+  sizePx: Dimension,
+  background: Rgb,
+  svgOutput: SvgOutput
+): Promise<RgbaPixels> {
+  if (imageFormatOf(image.data) !== ImageFormat.Svg) {
+    return await decodeImage(image.data, sizePx);
+  }
+
+  switch (svgOutput) {
+    case SvgOutput.RasterResvg:
+      return await renderSvg(dataUrlToBytes(image.data), sizePx, background);
+    case SvgOutput.RasterBrowser:
+      return await decodeImage(image.data, sizePx);
+    case SvgOutput.Vector:
+      throw new Error(`Cannot print "${image.name}": vector SVG output is not supported yet`);
+  }
+}
+
+/**
  * Embed a card image into the document, ready to be drawn any number of times.
  *
  * Printers resample images to their own grid and flatten transparency, both badly,
@@ -154,11 +178,8 @@ async function embedCardImage(
   if (!isDecodable(image.data)) {
     throw new Error(`Cannot print "${image.name}": ${mimeTypeOf(image.data)} images are not supported`);
   }
-  if (imageFormatOf(image.data) === ImageFormat.Svg && svgOutput !== SvgOutput.RasterBrowser) {
-    throw new Error(`Cannot print "${image.name}": SVG output "${svgOutput}" is not supported yet`);
-  }
 
-  const pixels = await toPrintRaster(await decodeImage(image.data, sizePx), sizePx, background);
+  const pixels = await toPrintRaster(await cardPixels(image, sizePx, background, svgOutput), sizePx, background);
 
   const stream = pdfDoc.context.flateStream(pixels.data, {
     Type: "XObject",

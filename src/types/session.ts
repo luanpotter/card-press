@@ -26,6 +26,9 @@ export const DEFAULT_CARD_BACKS: CardBacks = {
 // Default to white to not waste ink (prints nothing).
 export const DEFAULT_EMPTY_SLOT_COLOR: Rgb = WHITE;
 
+// At or above the grid most printer drivers resample images to (300/600, 360/720 on Epson).
+export const DEFAULT_PRINT_DPI = 600;
+
 export interface Session {
   id: string;
   name: string;
@@ -37,8 +40,14 @@ export interface Session {
    * Unset disables it, if the backing PDF template showing is the intent.
    */
   emptySlotColor?: Rgb | undefined;
+  /** Resolution card images are rendered at, in pixels per inch of the printed card */
+  printDpi?: number | undefined;
 }
 
 export function getCardBacks(session: Session): CardBacks {
   return session.cardBacks ?? DEFAULT_CARD_BACKS;
+}
+
+export function getPrintDpi(session: Session): number {
+  return session.printDpi ?? DEFAULT_PRINT_DPI;
 }

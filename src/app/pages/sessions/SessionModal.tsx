@@ -4,8 +4,13 @@ import { Modal } from "@/app/components/Modal";
 import { Select } from "@/app/components/Select";
 import { useTemplateStore } from "@/app/store/templates";
 import { RGB_HEX_PLACEHOLDER, rgbFromHex, rgbToHex } from "@/types/color";
-import { DEFAULT_EMPTY_SLOT_COLOR, type Session } from "@/types/session";
+import { DEFAULT_EMPTY_SLOT_COLOR, DEFAULT_PRINT_DPI, getPrintDpi, type Session } from "@/types/session";
+import { MAX_PAGE_MEGAPIXELS, pageMegapixels } from "@/utils/printResolution";
 import { useState } from "react";
+
+// Below this, cards print visibly pixelated; above, no printer resolves the detail
+const MIN_PRINT_DPI = 72;
+const MAX_PRINT_DPI = 2400;
 
 interface SessionModalProps {
   session: Session | undefined;
@@ -23,17 +28,24 @@ export function SessionModal({ session, existingNames, onSave, onClose }: Sessio
     const color = session ? session.emptySlotColor : DEFAULT_EMPTY_SLOT_COLOR;
     return color ? rgbToHex(color) : "";
   });
+  const [printDpi, setPrintDpi] = useState(String(session ? getPrintDpi(session) : DEFAULT_PRINT_DPI));
 
   const [errors, setErrors] = useState<{
     name?: string;
     templateId?: string;
     emptySlotColor?: string;
+    printDpi?: string;
   }>({});
 
   const templateOptions = templates.map((t) => ({ value: t.id, label: t.name }));
 
   const colorText = emptySlotColor.trim();
   const parsedColor = colorText === "" ? undefined : rgbFromHex(colorText);
+
+  const parsedDpi = Number(printDpi.trim());
+  const dpiValid = Number.isInteger(parsedDpi) && parsedDpi >= MIN_PRINT_DPI && parsedDpi <= MAX_PRINT_DPI;
+  const template = templates.find((t) => t.id === templateId);
+  const megapixels = template && dpiValid ? pageMegapixels(template, parsedDpi) : 0;
 
   const validate = () => {
     const trimmedName = name.trim();
@@ -47,6 +59,8 @@ export function SessionModal({ session, existingNames, onSave, onClose }: Sessio
     if (nameDuplicate) newErrors.name = "A session with this name already exists";
     if (templateMissing) newErrors.templateId = "Template is required";
     if (colorInvalid) newErrors.emptySlotColor = `Must be ${RGB_HEX_PLACEHOLDER}`;
+    if (!dpiValid)
+      newErrors.printDpi = `Must be a whole number from ${String(MIN_PRINT_DPI)} to ${String(MAX_PRINT_DPI)}`;
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -54,7 +68,7 @@ export function SessionModal({ session, existingNames, onSave, onClose }: Sessio
 
   const handleSave = () => {
     if (!validate()) return;
-    onSave({ name: name.trim(), templateId, emptySlotColor: parsedColor });
+    onSave({ name: name.trim(), templateId, emptySlotColor: parsedColor, printDpi: parsedDpi });
   };
 
   const footer = (
@@ -88,6 +102,23 @@ export function SessionModal({ session, existingNames, onSave, onClose }: Sessio
       <p className="muted" style={{ marginTop: "4px" }}>
         A solid rectangle of this color is rendered to empty slots (leave empty to disable).
       </p>
+
+      <Input
+        label="Print Resolution (DPI)"
+        type="number"
+        value={printDpi}
+        onChange={setPrintDpi}
+        error={errors.printDpi}
+      />
+      <p className="muted" style={{ marginTop: "4px" }}>
+        Render each image at this dpi (pixels per inch); {DEFAULT_PRINT_DPI} is a high-quality standard.
+      </p>
+      {megapixels > MAX_PAGE_MEGAPIXELS && (
+        <p className="danger" style={{ marginTop: "4px" }}>
+          A full page becomes {Math.ceil(megapixels)} MP at this resolution; printers will degrade or fail above{" "}
+          {MAX_PAGE_MEGAPIXELS} MP.
+        </p>
+      )}
 
       {templates.length === 0 && (
         <p className="danger" style={{ marginTop: "8px" }}>

@@ -42,11 +42,18 @@ function flatten({ width, height, data }: RgbaPixels, background: Rgb): RgbaPixe
  */
 function nearest({ width, height, data }: RgbaPixels, target: Dimension): RgbaPixels {
   const resized = new Uint8Array(target.width * target.height * 4);
+  // The source column of each target column is the same on every row
+  const sourceColumns = Array.from({ length: target.width }, (_, x) => Math.floor(((x + 0.5) * width) / target.width));
+
+  // Byte by byte, as millions of subarray copies are an order of magnitude slower
+  let output = 0;
   for (let y = 0; y < target.height; y++) {
     const sourceRow = Math.floor(((y + 0.5) * height) / target.height) * width;
-    for (let x = 0; x < target.width; x++) {
-      const source = (sourceRow + Math.floor(((x + 0.5) * width) / target.width)) * 4;
-      resized.set(data.subarray(source, source + 4), (y * target.width + x) * 4);
+    for (const column of sourceColumns) {
+      const source = (sourceRow + column) * 4;
+      for (let channel = 0; channel < 4; channel++) {
+        resized[output++] = data[source + channel] ?? 0;
+      }
     }
   }
   return { width: target.width, height: target.height, data: resized };
@@ -79,8 +86,11 @@ async function scale(flat: RgbaPixels, target: Dimension, scaling: RasterScaling
  */
 function toRgb({ width, height, data }: RgbaPixels): RgbPixels {
   const rgb = new Uint8Array(width * height * 3);
+  // Byte by byte, as millions of subarray copies are an order of magnitude slower
   for (let source = 0, target = 0; source < data.length; source += 4, target += 3) {
-    rgb.set(data.subarray(source, source + 3), target);
+    rgb[target] = data[source] ?? 0;
+    rgb[target + 1] = data[source + 1] ?? 0;
+    rgb[target + 2] = data[source + 2] ?? 0;
   }
   return { width, height, data: rgb };
 }

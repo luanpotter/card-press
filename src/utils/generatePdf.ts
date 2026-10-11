@@ -153,7 +153,7 @@ async function embedCardImage(
     throw new Error(`Cannot print "${image.name}": ${mimeTypeOf(image.data)} images are not supported`);
   }
 
-  const pixels = await toPrintRaster(await decodeImage(image.data), sizePx, background);
+  const pixels = await toPrintRaster(await decodeImage(image.data, sizePx), sizePx, background);
 
   const stream = pdfDoc.context.flateStream(pixels.data, {
     Type: "XObject",

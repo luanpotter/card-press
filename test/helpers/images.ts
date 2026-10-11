@@ -26,11 +26,6 @@ export function jpegBytes(width: number, height: number, rgb: [number, number, n
   return Uint8Array.from(data);
 }
 
-/** A minimal SVG, which PDF generation does not support yet */
-export const SVG_BYTES = new TextEncoder().encode(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>'
-);
-
 /** Images as the app stores them */
 export function dataUrl(mime: string, bytes: Uint8Array): string {
   return `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;

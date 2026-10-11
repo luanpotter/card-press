@@ -6,7 +6,7 @@ import { MirrorAxis, PageSize } from "@/types/page";
 import * as decoding from "@/utils/decodeImage";
 import { generatePdf } from "@/utils/generatePdf";
 import { decodeImage } from "@test/helpers/decodeImage";
-import { dataUrl, jpegBytes, pngBytes, SVG_BYTES } from "@test/helpers/images";
+import { dataUrl, jpegBytes, pngBytes } from "@test/helpers/images";
 import { inspectPdf } from "@test/helpers/inspectPdf";
 
 // The browser decoder needs createImageBitmap and a canvas
@@ -29,7 +29,8 @@ const IMAGES: Record<string, string> = {
   alpha: dataUrl("image/png", pngBytes(250, 350, [255, 0, 0, 128])),
   opaque: dataUrl("image/png", pngBytes(250, 350, [0, 255, 0, 255])),
   jpeg: dataUrl("image/jpeg", jpegBytes(2, 2, [0x33, 0x66, 0x99])),
-  svg: dataUrl("image/svg+xml", SVG_BYTES),
+  // Browsers don't decode TIFFs
+  tiff: dataUrl("image/tiff", new Uint8Array()),
 };
 
 const HORIZONTAL_BACKS = { defaultBackId: "jpeg", mirror: MirrorAxis.Horizontal };
@@ -101,9 +102,9 @@ describe("generatePdf", () => {
   });
 
   test("refuses images it cannot print, rather than leaving their slot blank", async () => {
-    expect(await rejection(generate([card("svg")]))).toHaveProperty(
+    expect(await rejection(generate([card("tiff")]))).toHaveProperty(
       "message",
-      'Cannot print "svg": image/svg+xml images are not supported'
+      'Cannot print "tiff": image/tiff images are not supported'
     );
   });
 

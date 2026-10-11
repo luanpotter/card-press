@@ -1,4 +1,4 @@
-import { DECODABLE_TYPES } from "@/utils/decodeImage";
+import { FORMATS_BY_MIME_TYPE, ImageFormat } from "@/utils/decodeImage";
 
 /**
  * Helpers for the files users upload, drop or paste as images.
@@ -6,11 +6,11 @@ import { DECODABLE_TYPES } from "@/utils/decodeImage";
  */
 
 /** File input `accept` attribute for every image type we can print */
-export const IMAGE_ACCEPT = [...DECODABLE_TYPES.keys()].join(",");
+export const IMAGE_ACCEPT = [...FORMATS_BY_MIME_TYPE.keys()].join(",");
 
 /** Whether a file (or a clipboard / drag item) holds an image we can print */
 export function isImageFile(file: { type: string }): boolean {
-  return DECODABLE_TYPES.has(file.type);
+  return FORMATS_BY_MIME_TYPE.has(file.type);
 }
 
 /**
@@ -21,7 +21,7 @@ export function validateImageFiles(files: Iterable<File>): { images: File[]; rej
   const all = Array.from(files);
   const images = all.filter(isImageFile);
   const rejected = all.filter((file) => !isImageFile(file)).map((file) => `"${file.name}"`);
-  const formats = [...new Set(DECODABLE_TYPES.values())].join(", ");
+  const formats = Object.values(ImageFormat).join(", ");
 
   return {
     images,

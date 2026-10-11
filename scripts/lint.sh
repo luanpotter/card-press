@@ -62,16 +62,16 @@ run_check "TypeScript (tsc --noEmit)" bun run tsc --noEmit
 
 # ESLint
 if [[ "$FIX" -eq 1 ]]; then
-    run_check "ESLint (fix)" bun run eslint src --fix
+    run_check "ESLint (fix)" bun run eslint src test --fix
 else
-    run_check "ESLint" bun run eslint src
+    run_check "ESLint" bun run eslint src test
 fi
 
 # Prettier formatting
 if [[ "$FIX" -eq 1 ]]; then
-    run_check "Prettier (fix)" bun run prettier --write src
+    run_check "Prettier (fix)" bun run prettier --write src test
 else
-    run_check "Prettier" bun run prettier --check src
+    run_check "Prettier" bun run prettier --check src test
 fi
 
 # Unit tests
@@ -94,7 +94,7 @@ fi
 run_check "Actionlint" actionlint
 
 # Check for unused dependencies
-run_check "Unused Dependencies" bunx depcheck --ignores="@types/*,jiti,globals,bun,bun:test"
+run_check "Unused Dependencies" bunx depcheck --ignores="@types/*,@test/*,jiti,globals,bun,bun:test"
 
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 if [ "$FAILED" -eq 0 ]; then

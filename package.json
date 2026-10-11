@@ -11,9 +11,9 @@
     "build": "bun run generate && bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
     "start": "NODE_ENV=production bun src/index.tsx",
     "test": "bun test",
-    "lint": "bun run generate && eslint src && prettier --check src",
-    "lint:fix": "bun run generate && eslint src --fix && prettier --write src",
-    "format": "prettier --write src"
+    "lint": "bun run generate && eslint src test && prettier --check src test",
+    "lint:fix": "bun run generate && eslint src test --fix && prettier --write src test",
+    "format": "prettier --write src test"
   },
   "dependencies": {
     "drop-in-css": "^0.1.9",

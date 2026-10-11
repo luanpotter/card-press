@@ -1,4 +1,4 @@
-import { PDFDocument, type PDFPage, rgb } from "pdf-lib";
+import { PDFDocument, type PDFImage, type PDFPage, PrintScaling, rgb } from "pdf-lib";
 import type { Template, Slot, Guideline } from "@/types/template";
 import type { Card, CardBacks } from "@/types/session";
 import type { Rgb } from "@/types/color";
@@ -49,6 +49,13 @@ function expandCards(cards: Card[]): ExpandedCard[] {
 }
 
 /**
+ * Ask viewers to print at actual size, lest "fit to page" rescale the cards and cut lines
+ */
+function printAtActualSize(doc: PDFDocument): void {
+  doc.catalog.getOrCreateViewerPreferences().setPrintScaling(PrintScaling.None);
+}
+
+/**
  * Reflect every page of a document across the given axis, including all contents.
  *
  * Pages are drawn as embedded form XObjects with a negative scale.
@@ -78,6 +85,7 @@ async function mirrorPdf(pdfBytes: Uint8Array, mirror: MirrorAxis): Promise<Uint
     });
   }
 
+  printAtActualSize(mirrored);
   return await mirrored.save();
 }
 
@@ -147,36 +155,40 @@ function slotRect(
 }
 
 /**
+ * Embed an image into the document, ready to be drawn any number of times
+ */
+async function embedImage(pdfDoc: PDFDocument, image: StoredImage): Promise<PDFImage> {
+  let imageType = getImageType(image.data);
+  if (!imageType) {
+    const mimeType = image.data.slice("data:".length, image.data.indexOf(";"));
+    throw new Error(`Cannot print "${image.name}": ${mimeType} images are not supported`);
+  }
+
+  // Convert WebP to PNG since pdf-lib doesn't support WebP
+  let finalImageData = image.data;
+  if (imageType === "webp") {
+    finalImageData = await convertWebpToPng(image.data);
+    imageType = "png";
+  }
+
+  const imageBytes = dataUrlToBytes(finalImageData);
+  return imageType === "png" ? await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
+}
+
+/**
  * Draw an image on a PDF page at the specified slot position, possibly mirrorer.
  * For flipped pages (backs), we render the images themselves mirrored so they reverse back
  * correctly when the whole page is mirrored for the slots and cut lines.
  */
-async function drawCardOnPage(
-  pdfDoc: PDFDocument,
+function drawCardOnPage(
   page: PDFPage,
   slot: Slot,
   cardWidth: number,
   cardHeight: number,
   pageHeight: number,
-  imageData: string,
+  image: PDFImage,
   mirror: MirrorAxis | undefined
-): Promise<void> {
-  let imageType = getImageType(imageData);
-  if (!imageType) {
-    // Unsupported image type, skip silently
-    return;
-  }
-
-  // Convert WebP to PNG since pdf-lib doesn't support WebP
-  let finalImageData = imageData;
-  if (imageType === "webp") {
-    finalImageData = await convertWebpToPng(imageData);
-    imageType = "png";
-  }
-
-  const imageBytes = dataUrlToBytes(finalImageData);
-  const image = imageType === "png" ? await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
-
+): void {
   const { x, y, width, height } = slotRect(slot, cardWidth, cardHeight, pageHeight);
 
   // A negative size draws the image reversed, from the opposite edge of the same slot
@@ -279,11 +291,26 @@ export async function generatePdf({
     if (basePdf) {
       const pdfBytes = dataUrlToBytes(basePdf.data);
       basePdfDoc = await PDFDocument.load(pdfBytes);
+
+      // Slots are measured on the template page, so a base page of another size misplaces every card
+      const basePage = basePdfDoc.getPages()[0];
+      if (basePage) {
+        const { width, height } = basePage.getSize();
+        const tolerance = 1; // points, for rounding in PDFs exported elsewhere
+        if (Math.abs(width - pageWidthPts) > tolerance || Math.abs(height - pageHeightPts) > tolerance) {
+          const mm = (points: number) => (points / MM_TO_POINTS).toFixed(1);
+          throw new Error(
+            `The base PDF "${basePdf.name}" is ${mm(width)}×${mm(height)}mm, but the template page ` +
+              `is ${template.pageSize} (${mm(pageWidthPts)}×${mm(pageHeightPts)}mm)`
+          );
+        }
+      }
     }
   }
 
   // Create output document
   const pdfDoc = await PDFDocument.create();
+  const embeddedImages = new Map<string, PDFImage>();
 
   // Process each page worth of cards
   for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
@@ -330,7 +357,7 @@ export async function generatePdf({
         expandedCard && (backs ? (expandedCard.cardBackId ?? backs.defaultBackId) : expandedCard.imageId);
 
       const image = imageIdToUse ? getImage(imageIdToUse) : undefined;
-      if (!image) {
+      if (!imageIdToUse || !image) {
         // No card (or no image) for this slot: paint over the base template instead
         drawEmptySlot(
           page,
@@ -347,14 +374,20 @@ export async function generatePdf({
       const cardIndex = startIdx + slotIndex;
       onProgress?.(cardIndex + 1, expandedCards.length);
 
-      await drawCardOnPage(
-        pdfDoc,
+      // Each image is embedded once, however many cards and slots show it
+      let pdfImage = embeddedImages.get(imageIdToUse);
+      if (!pdfImage) {
+        pdfImage = await embedImage(pdfDoc, image);
+        embeddedImages.set(imageIdToUse, pdfImage);
+      }
+
+      drawCardOnPage(
         page,
         slot,
         template.cardSize.width,
         template.cardSize.height,
         pageDimensions.height,
-        image.data,
+        pdfImage,
         backs?.mirror
       );
 
@@ -365,6 +398,7 @@ export async function generatePdf({
     }
   }
 
+  printAtActualSize(pdfDoc);
   const pdfBytes = await pdfDoc.save();
   return backs ? await mirrorPdf(pdfBytes, backs.mirror) : pdfBytes;
 }

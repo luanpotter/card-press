@@ -1,8 +1,22 @@
-import { PDFDocument, type PDFImage, type PDFPage, PrintScaling, rgb } from "pdf-lib";
+import {
+  concatTransformationMatrix,
+  drawObject,
+  PDFDocument,
+  type PDFPage,
+  type PDFRef,
+  popGraphicsState,
+  PrintScaling,
+  pushGraphicsState,
+  rgb,
+} from "pdf-lib";
 import type { Template, Slot, Guideline } from "@/types/template";
 import type { Card, CardBacks } from "@/types/session";
-import type { Rgb } from "@/types/color";
+import { type Rgb, WHITE } from "@/types/color";
+import type { Dimension } from "@/types/dimension";
 import { MirrorAxis, PAGE_DIMENSIONS } from "@/types/page";
+import { decodeImage, isDecodable, mimeTypeOf } from "@/utils/decodeImage";
+import { toPrintRaster } from "@/utils/printRaster";
+import { targetPixels } from "@/utils/printResolution";
 
 // Convert mm to PDF points (1 inch = 72 points, 1 inch = 25.4mm)
 const MM_TO_POINTS = 72 / 25.4;
@@ -28,6 +42,8 @@ interface GeneratePdfOptions {
   backs?: Omit<CardBacks, "enabled"> | undefined;
   /** Color painted over every slot left without a card; unset paints nothing */
   emptySlotColor?: Rgb | undefined;
+  /** Resolution every card image is rendered at, in pixels per printed inch */
+  printDpi: number;
 }
 
 interface ExpandedCard {
@@ -104,39 +120,6 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
 }
 
 /**
- * Detect image type from data URL
- */
-function getImageType(dataUrl: string): "png" | "jpeg" | "webp" | null {
-  if (dataUrl.startsWith("data:image/png")) return "png";
-  if (dataUrl.startsWith("data:image/jpeg") || dataUrl.startsWith("data:image/jpg")) return "jpeg";
-  if (dataUrl.startsWith("data:image/webp")) return "webp";
-  return null;
-}
-
-/**
- * Convert a WebP image to PNG using canvas
- */
-async function convertWebpToPng(webpDataUrl: string): Promise<string> {
-  return await new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("Failed to get canvas context"));
-        return;
-      }
-      ctx.drawImage(img, 0, 0);
-      resolve(canvas.toDataURL("image/png"));
-    };
-    img.onerror = () => reject(new Error("Failed to load image"));
-    img.src = webpDataUrl;
-  });
-}
-
-/**
  * Where a slot lands on the page, in PDF points.
  * The PDF origin is bottom-left, while slots are measured from the top of the page in mm.
  */
@@ -155,24 +138,32 @@ function slotRect(
 }
 
 /**
- * Embed an image into the document, ready to be drawn any number of times
+ * Embed a card image into the document, ready to be drawn any number of times.
+ *
+ * Printers resample images to their own grid and flatten transparency, both badly,
+ * so the image goes in at exactly the print resolution as an opaque, losslessly compressed RGB image.
  */
-async function embedImage(pdfDoc: PDFDocument, image: StoredImage): Promise<PDFImage> {
-  let imageType = getImageType(image.data);
-  if (!imageType) {
-    const mimeType = image.data.slice("data:".length, image.data.indexOf(";"));
-    throw new Error(`Cannot print "${image.name}": ${mimeType} images are not supported`);
+async function embedCardImage(
+  pdfDoc: PDFDocument,
+  image: StoredImage,
+  sizePx: Dimension,
+  background: Rgb
+): Promise<PDFRef> {
+  if (!isDecodable(image.data)) {
+    throw new Error(`Cannot print "${image.name}": ${mimeTypeOf(image.data)} images are not supported`);
   }
 
-  // Convert WebP to PNG since pdf-lib doesn't support WebP
-  let finalImageData = image.data;
-  if (imageType === "webp") {
-    finalImageData = await convertWebpToPng(image.data);
-    imageType = "png";
-  }
+  const pixels = await toPrintRaster(await decodeImage(image.data), sizePx, background);
 
-  const imageBytes = dataUrlToBytes(finalImageData);
-  return imageType === "png" ? await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
+  const stream = pdfDoc.context.flateStream(pixels.data, {
+    Type: "XObject",
+    Subtype: "Image",
+    Width: pixels.width,
+    Height: pixels.height,
+    BitsPerComponent: 8,
+    ColorSpace: "DeviceRGB",
+  });
+  return pdfDoc.context.register(stream);
 }
 
 /**
@@ -186,7 +177,7 @@ function drawCardOnPage(
   cardWidth: number,
   cardHeight: number,
   pageHeight: number,
-  image: PDFImage,
+  image: PDFRef,
   mirror: MirrorAxis | undefined
 ): void {
   const { x, y, width, height } = slotRect(slot, cardWidth, cardHeight, pageHeight);
@@ -195,12 +186,21 @@ function drawCardOnPage(
   const reverseVertically = mirror === MirrorAxis.Vertical;
   const reverseHorizontally = mirror !== undefined && !reverseVertically;
 
-  page.drawImage(image, {
-    x: reverseHorizontally ? x + width : x,
-    y: reverseVertically ? y + height : y,
-    width: reverseHorizontally ? -width : width,
-    height: reverseVertically ? -height : height,
-  });
+  // An image fills the unit square, so this matrix scales it to the slot
+  const name = page.node.newXObject("Card", image);
+  page.pushOperators(
+    pushGraphicsState(),
+    concatTransformationMatrix(
+      reverseHorizontally ? -width : width,
+      0,
+      0,
+      reverseVertically ? -height : height,
+      reverseHorizontally ? x + width : x,
+      reverseVertically ? y + height : y
+    ),
+    drawObject(name),
+    popGraphicsState()
+  );
 }
 
 /**
@@ -266,6 +266,7 @@ export async function generatePdf({
   signal,
   backs,
   emptySlotColor,
+  printDpi,
 }: GeneratePdfOptions): Promise<Uint8Array> {
   const expandedCards = expandCards(cards);
 
@@ -310,7 +311,11 @@ export async function generatePdf({
 
   // Create output document
   const pdfDoc = await PDFDocument.create();
-  const embeddedImages = new Map<string, PDFImage>();
+  const embeddedImages = new Map<string, PDFRef>();
+  const cardSizePx = targetPixels(template.cardSize, printDpi);
+  // Cards sit on the same background as empty slots, so transparent corners match them.
+  // With no slot color the base PDF shows through empty slots, but cards can't be flattened onto it: use the paper.
+  const cardBackground = emptySlotColor ?? WHITE;
 
   // Process each page worth of cards
   for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
@@ -377,7 +382,7 @@ export async function generatePdf({
       // Each image is embedded once, however many cards and slots show it
       let pdfImage = embeddedImages.get(imageIdToUse);
       if (!pdfImage) {
-        pdfImage = await embedImage(pdfDoc, image);
+        pdfImage = await embedCardImage(pdfDoc, image, cardSizePx, cardBackground);
         embeddedImages.set(imageIdToUse, pdfImage);
       }
 

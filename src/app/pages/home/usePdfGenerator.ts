@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Template } from "@/types/template";
-import { getCardBacks, type Card, type CardBacks, type Session } from "@/types/session";
+import { getCardBacks, getPrintDpi, type Card, type CardBacks, type Session } from "@/types/session";
 import { generatePdf, downloadPdf } from "@/utils/generatePdf";
 
 interface StoredImage {
@@ -113,6 +113,7 @@ export function usePdfGenerator({
               getPdf,
               backs,
               emptySlotColor: session.emptySlotColor,
+              printDpi: getPrintDpi(session),
               onProgress: (current, total) => setPdfProgress({ current, total }),
               signal: abortController.signal,
             });

@@ -19,6 +19,7 @@
     "drop-in-css": "^0.1.9",
     "idb-keyval": "^6.2.2",
     "pdf-lib": "^1.17.1",
+    "pica": "^10.0.3",
     "react": "^19",
     "react-dom": "^19",
     "zustand": "^5.0.10"

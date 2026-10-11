@@ -74,6 +74,9 @@ else
     run_check "Prettier" bun run prettier --check src
 fi
 
+# Unit tests
+run_check "Tests" bun test
+
 # Build check (ensures the project actually builds)
 run_check "Build" bun run build
 

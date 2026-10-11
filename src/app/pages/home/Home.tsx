@@ -218,7 +218,8 @@ export function Home() {
 
   const handleSavePastedCard = (name: string, count: number) => {
     if (!activeSession || !pastedImage) return;
-    const imageId = addImage("pasted-image", pastedImage);
+    // Pastes have no file name, and the card's is the one the user chose (for drops, prefilled from the file's)
+    const imageId = addImage(name, pastedImage);
     addCard(activeSession.id, { name, count, imageId });
     setPastedImage(null);
     setDroppedImageName(undefined);

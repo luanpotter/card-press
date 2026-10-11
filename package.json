@@ -19,10 +19,12 @@
     "@resvg/resvg-wasm": "^2.6.2",
     "drop-in-css": "^0.1.9",
     "idb-keyval": "^6.2.2",
+    "jspdf": "^4.2.1",
     "pdf-lib": "^1.17.1",
     "pica": "^10.0.3",
     "react": "^19",
     "react-dom": "^19",
+    "svg2pdf.js": "^2.8.1",
     "zustand": "^5.0.10"
   },
   "devDependencies": {

@@ -17,6 +17,7 @@ import { MirrorAxis, PAGE_DIMENSIONS } from "@/types/page";
 import { decodeImage, ImageFormat, imageFormatOf, isDecodable, mimeTypeOf } from "@/utils/decodeImage";
 import { type RgbaPixels, toPrintRaster } from "@/utils/printRaster";
 import { renderSvg } from "@/utils/renderSvg";
+import { svgToPdf } from "@/utils/svgToPdf";
 import { targetPixels } from "@/utils/printResolution";
 
 // Convert mm to PDF points (1 inch = 72 points, 1 inch = 25.4mm)
@@ -49,6 +50,7 @@ interface GeneratePdfOptions {
 }
 
 interface ExpandedCard {
+  name: string;
   imageId: string;
   cardBackId: string | undefined;
 }
@@ -60,7 +62,7 @@ function expandCards(cards: Card[]): ExpandedCard[] {
   const expanded: ExpandedCard[] = [];
   for (const card of cards) {
     for (let i = 0; i < card.count; i++) {
-      expanded.push({ imageId: card.imageId, cardBackId: card.cardBackId });
+      expanded.push({ name: card.name, imageId: card.imageId, cardBackId: card.cardBackId });
     }
   }
   return expanded;
@@ -140,61 +142,88 @@ function slotRect(
 }
 
 /**
- * The pixels of a card image, with SVGs rendered at the given size as the session asks
+ * A card embedded in the document, ready to be drawn any number of times.
+ * It is drawn by stretching its box, from the origin to its width and height, over the slot.
  */
-async function cardPixels(
-  image: StoredImage,
-  sizePx: Dimension,
-  background: Rgb,
-  svgOutput: SvgOutput
-): Promise<RgbaPixels> {
-  if (imageFormatOf(image.data) !== ImageFormat.Svg) {
-    return await decodeImage(image.data, sizePx);
-  }
-
-  switch (svgOutput) {
-    case SvgOutput.RasterResvg:
-      return await renderSvg(dataUrlToBytes(image.data), sizePx, background);
-    case SvgOutput.RasterBrowser:
-      return await decodeImage(image.data, sizePx);
-    case SvgOutput.Vector:
-      throw new Error(`Cannot print "${image.name}": vector SVG output is not supported yet`);
-  }
+interface EmbeddedCard {
+  ref: PDFRef;
+  width: number;
+  height: number;
 }
 
 /**
- * Embed a card image into the document, ready to be drawn any number of times.
- *
- * Printers resample images to their own grid and flatten transparency, both badly,
- * so the image goes in at exactly the print resolution as an opaque, losslessly compressed RGB image.
+ * Embed card pixels, at exactly the print resolution, as an opaque, losslessly compressed RGB image.
+ * Printers resample images to their own grid and flatten transparency, both badly, so neither is left to them.
  */
-async function embedCardImage(
+async function embedPixels(
+  pdfDoc: PDFDocument,
+  pixels: RgbaPixels,
+  sizePx: Dimension,
+  background: Rgb
+): Promise<EmbeddedCard> {
+  const rgb = await toPrintRaster(pixels, sizePx, background);
+
+  const stream = pdfDoc.context.flateStream(rgb.data, {
+    Type: "XObject",
+    Subtype: "Image",
+    Width: rgb.width,
+    Height: rgb.height,
+    BitsPerComponent: 8,
+    ColorSpace: "DeviceRGB",
+  });
+  // An image fills the unit square
+  return { ref: pdfDoc.context.register(stream), width: 1, height: 1 };
+}
+
+/**
+ * Embed an SVG as vector graphics, sharp at any printer resolution
+ */
+async function embedVectorSvg(pdfDoc: PDFDocument, image: StoredImage): Promise<EmbeddedCard> {
+  const svgPdf = await svgToPdf(new TextDecoder().decode(dataUrlToBytes(image.data)));
+  const [page] = await pdfDoc.embedPdf(svgPdf);
+  if (!page) {
+    throw new Error("its vector conversion has no page");
+  }
+  return { ref: page.ref, width: page.width, height: page.height };
+}
+
+/**
+ * Embed a card image into the document, with SVGs embedded as the session asks.
+ * Throws why it cannot, for the caller to say which card it is.
+ */
+async function embedCard(
   pdfDoc: PDFDocument,
   image: StoredImage,
   sizePx: Dimension,
   background: Rgb,
   svgOutput: SvgOutput
-): Promise<PDFRef> {
+): Promise<EmbeddedCard> {
   if (!isDecodable(image.data)) {
-    throw new Error(`Cannot print "${image.name}": ${mimeTypeOf(image.data)} images are not supported`);
+    throw new Error(`${mimeTypeOf(image.data)} images are not supported`);
   }
 
-  const pixels = await toPrintRaster(await cardPixels(image, sizePx, background, svgOutput), sizePx, background);
+  if (imageFormatOf(image.data) === ImageFormat.Svg) {
+    switch (svgOutput) {
+      case SvgOutput.RasterResvg:
+        return await embedPixels(
+          pdfDoc,
+          await renderSvg(dataUrlToBytes(image.data), sizePx, background),
+          sizePx,
+          background
+        );
+      case SvgOutput.RasterBrowser:
+        return await embedPixels(pdfDoc, await decodeImage(image.data, sizePx), sizePx, background);
+      case SvgOutput.Vector:
+        return await embedVectorSvg(pdfDoc, image);
+    }
+  }
 
-  const stream = pdfDoc.context.flateStream(pixels.data, {
-    Type: "XObject",
-    Subtype: "Image",
-    Width: pixels.width,
-    Height: pixels.height,
-    BitsPerComponent: 8,
-    ColorSpace: "DeviceRGB",
-  });
-  return pdfDoc.context.register(stream);
+  return await embedPixels(pdfDoc, await decodeImage(image.data, sizePx), sizePx, background);
 }
 
 /**
- * Draw an image on a PDF page at the specified slot position, possibly mirrorer.
- * For flipped pages (backs), we render the images themselves mirrored so they reverse back
+ * Draw a card on a PDF page at the specified slot position, possibly mirrorer.
+ * For flipped pages (backs), we render the cards themselves mirrored so they reverse back
  * correctly when the whole page is mirrored for the slots and cut lines.
  */
 function drawCardOnPage(
@@ -203,24 +232,29 @@ function drawCardOnPage(
   cardWidth: number,
   cardHeight: number,
   pageHeight: number,
-  image: PDFRef,
+  card: EmbeddedCard,
+  background: Rgb,
   mirror: MirrorAxis | undefined
 ): void {
   const { x, y, width, height } = slotRect(slot, cardWidth, cardHeight, pageHeight);
 
-  // A negative size draws the image reversed, from the opposite edge of the same slot
+  // What shows through transparent parts of vector cards; images are flattened onto the same color, covering it
+  drawEmptySlot(page, slot, cardWidth, cardHeight, pageHeight, background);
+
+  // A negative size draws the card reversed, from the opposite edge of the same slot
   const reverseVertically = mirror === MirrorAxis.Vertical;
   const reverseHorizontally = mirror !== undefined && !reverseVertically;
+  const scaleX = width / card.width;
+  const scaleY = height / card.height;
 
-  // An image fills the unit square, so this matrix scales it to the slot
-  const name = page.node.newXObject("Card", image);
+  const name = page.node.newXObject("Card", card.ref);
   page.pushOperators(
     pushGraphicsState(),
     concatTransformationMatrix(
-      reverseHorizontally ? -width : width,
+      reverseHorizontally ? -scaleX : scaleX,
       0,
       0,
-      reverseVertically ? -height : height,
+      reverseVertically ? -scaleY : scaleY,
       reverseHorizontally ? x + width : x,
       reverseVertically ? y + height : y
     ),
@@ -338,7 +372,7 @@ export async function generatePdf({
 
   // Create output document
   const pdfDoc = await PDFDocument.create();
-  const embeddedImages = new Map<string, PDFRef>();
+  const embeddedCards = new Map<string, EmbeddedCard>();
   const cardSizePx = targetPixels(template.cardSize, printDpi);
   // Cards sit on the same background as empty slots, so transparent corners match them.
   // With no slot color the base PDF shows through empty slots, but cards can't be flattened onto it: use the paper.
@@ -389,7 +423,7 @@ export async function generatePdf({
         expandedCard && (backs ? (expandedCard.cardBackId ?? backs.defaultBackId) : expandedCard.imageId);
 
       const image = imageIdToUse ? getImage(imageIdToUse) : undefined;
-      if (!imageIdToUse || !image) {
+      if (!expandedCard || !imageIdToUse || !image) {
         // No card (or no image) for this slot: paint over the base template instead
         drawEmptySlot(
           page,
@@ -407,10 +441,16 @@ export async function generatePdf({
       onProgress?.(cardIndex + 1, expandedCards.length);
 
       // Each image is embedded once, however many cards and slots show it
-      let pdfImage = embeddedImages.get(imageIdToUse);
-      if (!pdfImage) {
-        pdfImage = await embedCardImage(pdfDoc, image, cardSizePx, cardBackground, svgOutput);
-        embeddedImages.set(imageIdToUse, pdfImage);
+      let embeddedCard = embeddedCards.get(imageIdToUse);
+      if (!embeddedCard) {
+        try {
+          embeddedCard = await embedCard(pdfDoc, image, cardSizePx, cardBackground, svgOutput);
+        } catch (error) {
+          // Named as the card list shows it, not by its stored image
+          const card = backs ? `the back of "${expandedCard.name}"` : `"${expandedCard.name}"`;
+          throw new Error(`Cannot print ${card}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+        embeddedCards.set(imageIdToUse, embeddedCard);
       }
 
       drawCardOnPage(
@@ -419,7 +459,8 @@ export async function generatePdf({
         template.cardSize.width,
         template.cardSize.height,
         pageDimensions.height,
-        pdfImage,
+        embeddedCard,
+        cardBackground,
         backs?.mirror
       );
 

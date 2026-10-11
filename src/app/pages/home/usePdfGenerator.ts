@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Template } from "@/types/template";
-import { getCardBacks, type Card, type Session } from "@/types/session";
+import { getCardBacks, type Card, type CardBacks, type Session } from "@/types/session";
 import { generatePdf, downloadPdf } from "@/utils/generatePdf";
 
 interface StoredImage {
@@ -44,6 +44,14 @@ interface UsePdfGeneratorResult {
   cancelGeneration: () => void;
 }
 
+interface Generation {
+  /** Callback to flag this generation as in progress */
+  setBusy: (busy: boolean) => void;
+  /** Generates the backs PDF instead of the fronts one */
+  backs?: Omit<CardBacks, "enabled">;
+  onPdf: (pdf: Uint8Array) => void;
+}
+
 export function usePdfGenerator({
   cards,
   session,
@@ -73,7 +81,7 @@ export function usePdfGenerator({
     }
   }, [previewUrl]);
 
-  // Cleanup preview URL on unmount
+  // Revoke the preview URL once replaced, and on unmount
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -82,133 +90,74 @@ export function usePdfGenerator({
     };
   }, [previewUrl]);
 
+  const run = useCallback(
+    ({ setBusy, backs, onPdf }: Generation) => {
+      if (!template || cards.length === 0) return;
+
+      // Cancel any existing generation
+      abortControllerRef.current?.abort();
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
+      setBusy(true);
+      setPdfProgress({ current: 0, total: 0 });
+
+      // Use setTimeout to allow React to paint loading state before blocking
+      setTimeout(() => {
+        void (async () => {
+          try {
+            const pdf = await generatePdf({
+              template,
+              cards,
+              getImage,
+              getPdf,
+              backs,
+              emptySlotColor: session.emptySlotColor,
+              onProgress: (current, total) => setPdfProgress({ current, total }),
+              signal: abortController.signal,
+            });
+            onPdf(pdf);
+          } catch (err) {
+            // Don't show error for cancellation
+            if (err instanceof DOMException && err.name === "AbortError") {
+              return;
+            }
+            setError(err instanceof Error ? err.message : "Failed to generate PDF");
+          } finally {
+            setBusy(false);
+            abortControllerRef.current = null;
+          }
+        })();
+      }, 0);
+    },
+    [template, cards, getImage, getPdf, session]
+  );
+
   const handlePreview = useCallback(() => {
-    if (!template || cards.length === 0) return;
-
-    // Cancel any existing generation
-    abortControllerRef.current?.abort();
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
-    setPreviewing(true);
-    setPdfProgress({ current: 0, total: 0 });
-
-    // Use setTimeout to allow React to paint loading state before blocking
-    setTimeout(() => {
-      void (async () => {
-        try {
-          const pdfBytes = await generatePdf({
-            template,
-            cards,
-            getImage,
-            getPdf,
-            emptySlotColor: session.emptySlotColor,
-            onProgress: (current, total) => setPdfProgress({ current, total }),
-            signal: abortController.signal,
-          });
-
-          // Revoke old URL if exists
-          if (previewUrl) {
-            URL.revokeObjectURL(previewUrl);
-          }
-
-          const blob = new Blob([pdfBytes as BlobPart], { type: "application/pdf" });
-          const url = URL.createObjectURL(blob);
-          setPreviewUrl(url);
-        } catch (err) {
-          // Don't show error for cancellation
-          if (err instanceof DOMException && err.name === "AbortError") {
-            return;
-          }
-          setError(err instanceof Error ? err.message : "Failed to generate preview");
-        } finally {
-          setPreviewing(false);
-          abortControllerRef.current = null;
-        }
-      })();
-    }, 0);
-  }, [template, cards, getImage, getPdf, previewUrl, session]);
+    run({
+      setBusy: setPreviewing,
+      onPdf: (pdf) => {
+        const blob = new Blob([pdf as BlobPart], { type: "application/pdf" });
+        setPreviewUrl(URL.createObjectURL(blob));
+      },
+    });
+  }, [run]);
 
   const handleGenerate = useCallback(() => {
-    if (!template || cards.length === 0) return;
-
-    // Cancel any existing generation
-    abortControllerRef.current?.abort();
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
-    setGenerating(true);
-    setPdfProgress({ current: 0, total: 0 });
-
-    setTimeout(() => {
-      void (async () => {
-        try {
-          const pdfBytes = await generatePdf({
-            template,
-            cards,
-            getImage,
-            getPdf,
-            emptySlotColor: session.emptySlotColor,
-            onProgress: (current, total) => setPdfProgress({ current, total }),
-            signal: abortController.signal,
-          });
-
-          downloadPdf(pdfBytes, `${session.name || "cards"}.pdf`);
-        } catch (err) {
-          // Don't show error for cancellation
-          if (err instanceof DOMException && err.name === "AbortError") {
-            return;
-          }
-          setError(err instanceof Error ? err.message : "Failed to generate PDF");
-        } finally {
-          setGenerating(false);
-          abortControllerRef.current = null;
-        }
-      })();
-    }, 0);
-  }, [template, cards, getImage, getPdf, session]);
+    run({
+      setBusy: setGenerating,
+      onPdf: (pdf) => downloadPdf(pdf, `${session.name || "cards"}.pdf`),
+    });
+  }, [run, session.name]);
 
   const handleGenerateBacks = useCallback(() => {
-    if (!template || cards.length === 0) return;
-
-    // Cancel any existing generation
-    abortControllerRef.current?.abort();
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
     const { defaultBackId, mirror } = getCardBacks(session);
-
-    setGeneratingBacks(true);
-    setPdfProgress({ current: 0, total: 0 });
-
-    setTimeout(() => {
-      void (async () => {
-        try {
-          const pdfBytes = await generatePdf({
-            template,
-            cards,
-            getImage,
-            getPdf,
-            backs: { defaultBackId, mirror },
-            emptySlotColor: session.emptySlotColor,
-            onProgress: (current, total) => setPdfProgress({ current, total }),
-            signal: abortController.signal,
-          });
-
-          downloadPdf(pdfBytes, `${session.name || "cards"}-backs.pdf`);
-        } catch (err) {
-          // Don't show error for cancellation
-          if (err instanceof DOMException && err.name === "AbortError") {
-            return;
-          }
-          setError(err instanceof Error ? err.message : "Failed to generate backs PDF");
-        } finally {
-          setGeneratingBacks(false);
-          abortControllerRef.current = null;
-        }
-      })();
-    }, 0);
-  }, [template, cards, getImage, getPdf, session]);
+    run({
+      setBusy: setGeneratingBacks,
+      backs: { defaultBackId, mirror },
+      onPdf: (pdf) => downloadPdf(pdf, `${session.name || "cards"}-backs.pdf`),
+    });
+  }, [run, session]);
 
   return {
     generating,

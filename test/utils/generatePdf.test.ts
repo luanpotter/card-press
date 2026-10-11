@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { PDFDocument, PrintScaling } from "pdf-lib";
-import { SvgOutput, type Card } from "@/types/session";
+import { RasterScaling, SvgOutput, type Card } from "@/types/session";
 import type { Template } from "@/types/template";
 import { MirrorAxis, PageSize } from "@/types/page";
 import * as decoding from "@/utils/decodeImage";
@@ -56,6 +56,7 @@ async function generate(
     getPdf: () => (basePdf ? { name: "base.pdf", data: basePdf } : undefined),
     backs,
     printDpi,
+    rasterScaling: RasterScaling.Lanczos,
     // The browser renderer needs a DOM
     svgOutput: SvgOutput.RasterResvg,
   });

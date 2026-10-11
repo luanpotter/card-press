@@ -7,9 +7,12 @@ import { RGB_HEX_PLACEHOLDER, rgbFromHex, rgbToHex } from "@/types/color";
 import {
   DEFAULT_EMPTY_SLOT_COLOR,
   DEFAULT_PRINT_DPI,
+  DEFAULT_RASTER_SCALING,
   DEFAULT_SVG_OUTPUT,
   getPrintDpi,
+  getRasterScaling,
   getSvgOutput,
+  RasterScaling,
   SvgOutput,
   type Session,
 } from "@/types/session";
@@ -37,6 +40,7 @@ export function SessionModal({ session, existingNames, onSave, onClose }: Sessio
     return color ? rgbToHex(color) : "";
   });
   const [printDpi, setPrintDpi] = useState(String(session ? getPrintDpi(session) : DEFAULT_PRINT_DPI));
+  const [rasterScaling, setRasterScaling] = useState(session ? getRasterScaling(session) : DEFAULT_RASTER_SCALING);
   const [svgOutput, setSvgOutput] = useState(session ? getSvgOutput(session) : DEFAULT_SVG_OUTPUT);
 
   const [errors, setErrors] = useState<{
@@ -77,7 +81,14 @@ export function SessionModal({ session, existingNames, onSave, onClose }: Sessio
 
   const handleSave = () => {
     if (!validate()) return;
-    onSave({ name: name.trim(), templateId, emptySlotColor: parsedColor, printDpi: parsedDpi, svgOutput });
+    onSave({
+      name: name.trim(),
+      templateId,
+      emptySlotColor: parsedColor,
+      printDpi: parsedDpi,
+      rasterScaling,
+      svgOutput,
+    });
   };
 
   const footer = (
@@ -128,6 +139,21 @@ export function SessionModal({ session, existingNames, onSave, onClose }: Sessio
           {MAX_PAGE_MEGAPIXELS} MP.
         </p>
       )}
+
+      <Select
+        label="Raster Scaling"
+        value={rasterScaling}
+        onChange={(value) => setRasterScaling(value as RasterScaling)}
+        options={[
+          { value: RasterScaling.Lanczos, label: "Lanczos" },
+          { value: RasterScaling.Nearest, label: "Nearest neighbor" },
+          { value: RasterScaling.Original, label: "Original pixels" },
+        ]}
+      />
+      <p className="muted" style={{ marginTop: "4px" }}>
+        How raster images are sampled on the output PDF at the desired DPI; Lanczos is smooth, nearest neighbor keeps
+        hard edges (pixel art).
+      </p>
 
       <Select
         label="SVG Output"

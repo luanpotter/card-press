@@ -10,7 +10,7 @@ import {
   rgb,
 } from "pdf-lib";
 import type { Template, Slot, Guideline } from "@/types/template";
-import { SvgOutput, type Card, type CardBacks } from "@/types/session";
+import { SvgOutput, type Card, type CardBacks, type RasterScaling } from "@/types/session";
 import { type Rgb, WHITE } from "@/types/color";
 import type { Dimension } from "@/types/dimension";
 import { MirrorAxis, PAGE_DIMENSIONS } from "@/types/page";
@@ -46,6 +46,7 @@ interface GeneratePdfOptions {
   emptySlotColor?: Rgb | undefined;
   /** Resolution every card image is rendered at, in pixels per printed inch */
   printDpi: number;
+  rasterScaling: RasterScaling;
   svgOutput: SvgOutput;
 }
 
@@ -151,17 +152,26 @@ interface EmbeddedCard {
   height: number;
 }
 
+/** How card images are rendered for print, the same for every card of a document */
+interface CardRendering {
+  /** Size of a card in pixels, at the print resolution */
+  sizePx: Dimension;
+  /** Color that images are flattened onto, and that shows through transparent parts of vector cards */
+  background: Rgb;
+  rasterScaling: RasterScaling;
+  svgOutput: SvgOutput;
+}
+
 /**
- * Embed card pixels, at exactly the print resolution, as an opaque, losslessly compressed RGB image.
+ * Embed card pixels, at the print resolution unless kept at their own, as an opaque, losslessly compressed RGB image.
  * Printers resample images to their own grid and flatten transparency, both badly, so neither is left to them.
  */
 async function embedPixels(
   pdfDoc: PDFDocument,
   pixels: RgbaPixels,
-  sizePx: Dimension,
-  background: Rgb
+  { sizePx, background, rasterScaling }: CardRendering
 ): Promise<EmbeddedCard> {
-  const rgb = await toPrintRaster(pixels, sizePx, background);
+  const rgb = await toPrintRaster(pixels, sizePx, background, rasterScaling);
 
   const stream = pdfDoc.context.flateStream(rgb.data, {
     Type: "XObject",
@@ -191,34 +201,24 @@ async function embedVectorSvg(pdfDoc: PDFDocument, image: StoredImage): Promise<
  * Embed a card image into the document, with SVGs embedded as the session asks.
  * Throws why it cannot, for the caller to say which card it is.
  */
-async function embedCard(
-  pdfDoc: PDFDocument,
-  image: StoredImage,
-  sizePx: Dimension,
-  background: Rgb,
-  svgOutput: SvgOutput
-): Promise<EmbeddedCard> {
+async function embedCard(pdfDoc: PDFDocument, image: StoredImage, rendering: CardRendering): Promise<EmbeddedCard> {
   if (!isDecodable(image.data)) {
     throw new Error(`${mimeTypeOf(image.data)} images are not supported`);
   }
 
+  const { sizePx, background, svgOutput } = rendering;
   if (imageFormatOf(image.data) === ImageFormat.Svg) {
     switch (svgOutput) {
       case SvgOutput.RasterResvg:
-        return await embedPixels(
-          pdfDoc,
-          await renderSvg(dataUrlToBytes(image.data), sizePx, background),
-          sizePx,
-          background
-        );
+        return await embedPixels(pdfDoc, await renderSvg(dataUrlToBytes(image.data), sizePx, background), rendering);
       case SvgOutput.RasterBrowser:
-        return await embedPixels(pdfDoc, await decodeImage(image.data, sizePx), sizePx, background);
+        return await embedPixels(pdfDoc, await decodeImage(image.data, sizePx), rendering);
       case SvgOutput.Vector:
         return await embedVectorSvg(pdfDoc, image);
     }
   }
 
-  return await embedPixels(pdfDoc, await decodeImage(image.data, sizePx), sizePx, background);
+  return await embedPixels(pdfDoc, await decodeImage(image.data, sizePx), rendering);
 }
 
 /**
@@ -327,6 +327,7 @@ export async function generatePdf({
   backs,
   emptySlotColor,
   printDpi,
+  rasterScaling,
   svgOutput,
 }: GeneratePdfOptions): Promise<Uint8Array> {
   const expandedCards = expandCards(cards);
@@ -373,10 +374,15 @@ export async function generatePdf({
   // Create output document
   const pdfDoc = await PDFDocument.create();
   const embeddedCards = new Map<string, EmbeddedCard>();
-  const cardSizePx = targetPixels(template.cardSize, printDpi);
   // Cards sit on the same background as empty slots, so transparent corners match them.
   // With no slot color the base PDF shows through empty slots, but cards can't be flattened onto it: use the paper.
   const cardBackground = emptySlotColor ?? WHITE;
+  const rendering: CardRendering = {
+    sizePx: targetPixels(template.cardSize, printDpi),
+    background: cardBackground,
+    rasterScaling,
+    svgOutput,
+  };
 
   // Process each page worth of cards
   for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
@@ -444,7 +450,7 @@ export async function generatePdf({
       let embeddedCard = embeddedCards.get(imageIdToUse);
       if (!embeddedCard) {
         try {
-          embeddedCard = await embedCard(pdfDoc, image, cardSizePx, cardBackground, svgOutput);
+          embeddedCard = await embedCard(pdfDoc, image, rendering);
         } catch (error) {
           // Named as the card list shows it, not by its stored image
           const card = backs ? `the back of "${expandedCard.name}"` : `"${expandedCard.name}"`;

@@ -29,6 +29,18 @@ export const DEFAULT_EMPTY_SLOT_COLOR: Rgb = WHITE;
 // At or above the grid most printer drivers resample images to (300/600, 360/720 on Epson).
 export const DEFAULT_PRINT_DPI = 600;
 
+/** How raster images are brought to the print resolution */
+export enum RasterScaling {
+  /** Resampled to exactly the print resolution with Lanczos, sharp and smooth */
+  Lanczos = "lanczos",
+  /** Resampled to exactly the print resolution by repeating or dropping pixels, keeping hard edges (pixel art) */
+  Nearest = "nearest",
+  /** Kept at the image's own size, left for the printer to resample */
+  Original = "original",
+}
+
+export const DEFAULT_RASTER_SCALING = RasterScaling.Lanczos;
+
 /** How SVG images go into the PDF */
 export enum SvgOutput {
   /** Rendered to pixels by resvg, the same in every browser */
@@ -55,6 +67,7 @@ export interface Session {
   emptySlotColor?: Rgb | undefined;
   /** Resolution card images are rendered at, in pixels per inch of the printed card */
   printDpi?: number | undefined;
+  rasterScaling?: RasterScaling | undefined;
   svgOutput?: SvgOutput | undefined;
 }
 
@@ -64,6 +77,10 @@ export function getCardBacks(session: Session): CardBacks {
 
 export function getPrintDpi(session: Session): number {
   return session.printDpi ?? DEFAULT_PRINT_DPI;
+}
+
+export function getRasterScaling(session: Session): RasterScaling {
+  return session.rasterScaling ?? DEFAULT_RASTER_SCALING;
 }
 
 export function getSvgOutput(session: Session): SvgOutput {

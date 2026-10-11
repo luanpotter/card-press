@@ -1,6 +1,7 @@
 import { Pica } from "pica";
 import type { Rgb } from "@/types/color";
 import type { Dimension } from "@/types/dimension";
+import { RasterScaling } from "@/types/session";
 
 /** Decoded pixels, 8 bits per channel, 4 channels (straight, not premultiplied, alpha) */
 export interface RgbaPixels {
@@ -37,6 +38,43 @@ function flatten({ width, height, data }: RgbaPixels, background: Rgb): RgbaPixe
 }
 
 /**
+ * Resize by taking, for each target pixel, the source pixel under its center: no new colors, hard edges kept
+ */
+function nearest({ width, height, data }: RgbaPixels, target: Dimension): RgbaPixels {
+  const resized = new Uint8Array(target.width * target.height * 4);
+  for (let y = 0; y < target.height; y++) {
+    const sourceRow = Math.floor(((y + 0.5) * height) / target.height) * width;
+    for (let x = 0; x < target.width; x++) {
+      const source = (sourceRow + Math.floor(((x + 0.5) * width) / target.width)) * 4;
+      resized.set(data.subarray(source, source + 4), (y * target.width + x) * 4);
+    }
+  }
+  return { width: target.width, height: target.height, data: resized };
+}
+
+/**
+ * Bring opaque pixels to the target size, as the scaling asks
+ */
+async function scale(flat: RgbaPixels, target: Dimension, scaling: RasterScaling): Promise<RgbaPixels> {
+  if (scaling === RasterScaling.Original || (flat.width === target.width && flat.height === target.height)) {
+    return flat;
+  }
+  if (scaling === RasterScaling.Nearest) {
+    return nearest(flat, target);
+  }
+
+  const resized = await resampler.resizeBuffer({
+    src: flat.data,
+    width: flat.width,
+    height: flat.height,
+    toWidth: target.width,
+    toHeight: target.height,
+    filter: "lanczos3",
+  });
+  return { width: target.width, height: target.height, data: resized };
+}
+
+/**
  * Drop the alpha channel of opaque pixels
  */
 function toRgb({ width, height, data }: RgbaPixels): RgbPixels {
@@ -49,22 +87,14 @@ function toRgb({ width, height, data }: RgbaPixels): RgbPixels {
 
 /**
  * Prepare an image for print: flattened onto the background (printers handle transparency badly)
- * and resampled with Lanczos to exactly the target size (rather than by the printer driver).
+ * and, unless kept at its own size, resampled to exactly the target size (rather than by the printer driver).
  */
-export async function toPrintRaster(image: RgbaPixels, target: Dimension, background: Rgb): Promise<RgbPixels> {
+export async function toPrintRaster(
+  image: RgbaPixels,
+  target: Dimension,
+  background: Rgb,
+  scaling: RasterScaling
+): Promise<RgbPixels> {
   // Flattening first keeps the resampler from blending in the color of fully transparent pixels
-  const flat = flatten(image, background);
-  if (flat.width === target.width && flat.height === target.height) {
-    return toRgb(flat);
-  }
-
-  const resized = await resampler.resizeBuffer({
-    src: flat.data,
-    width: flat.width,
-    height: flat.height,
-    toWidth: target.width,
-    toHeight: target.height,
-    filter: "lanczos3",
-  });
-  return toRgb({ width: target.width, height: target.height, data: resized });
+  return toRgb(await scale(flatten(image, background), target, scaling));
 }

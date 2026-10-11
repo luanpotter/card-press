@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { loadDefaultTemplates } from "@/app/store/loadDefaults";
 import { useSessionStore } from "@/app/store/sessions";
 import { useTemplateStore } from "@/app/store/templates";
@@ -9,6 +9,7 @@ import { Button } from "@/app/components/Button";
 import { ConfirmModal } from "@/app/components/ConfirmModal";
 import { ProgressModal } from "@/app/components/ProgressModal";
 import { Table, type Column } from "@/app/components/Table";
+import { usePastedImage } from "@/app/components/usePastedImage";
 import { CardModal } from "@/app/pages/home/CardModal";
 import { CardBacksModal } from "@/app/pages/home/CardBacksModal";
 import { QuickAddCardModal } from "@/app/pages/home/QuickAddCardModal";
@@ -17,6 +18,7 @@ import { SessionModal } from "@/app/pages/sessions/SessionModal";
 import { usePdfGenerator } from "@/app/pages/home/usePdfGenerator";
 import type { FetchResult } from "@/sources/index";
 import { getCardBacks, type Card, type Session } from "@/types/session";
+import { cardName, IMAGE_ACCEPT, isImageFile, readDataUrl } from "@/utils/imageFiles";
 
 type ViewMode = "list" | "images";
 
@@ -95,32 +97,23 @@ export function Home() {
     }
   }, [sessions.length, templates, defaultTemplateId, addSession]);
 
-  // Handle paste event for clipboard images
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
+  // A pasted image opens the quick add modal
+  usePastedImage(
+    useCallback((file: File) => {
+      void readDataUrl(file).then(setPastedImage);
+    }, [])
+  );
 
-      for (const item of items) {
-        if (item.type.startsWith("image/")) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (!file) continue;
-
-          const reader = new FileReader();
-          reader.onload = () => {
-            const data = reader.result as string;
-            setPastedImage(data);
-          };
-          reader.readAsDataURL(file);
-          break;
-        }
+  // Each file becomes a card named after it, in the order given
+  const addFileCards = useCallback(
+    async (sessionId: string, files: File[]) => {
+      for (const file of files) {
+        const imageId = addImage(file.name, await readDataUrl(file));
+        addCard(sessionId, { name: cardName(file), count: 1, imageId });
       }
-    };
-
-    document.addEventListener("paste", handlePaste);
-    return () => document.removeEventListener("paste", handlePaste);
-  }, []);
+    },
+    [addImage, addCard]
+  );
 
   // Handle drag and drop for image files
   useEffect(() => {
@@ -156,8 +149,7 @@ export function Home() {
       const files = e.dataTransfer.files;
       if (files.length === 0) return;
 
-      // Filter to only image files
-      const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
+      const imageFiles = Array.from(files).filter(isImageFile);
       if (imageFiles.length === 0) return;
 
       const session = getActiveSession();
@@ -165,29 +157,17 @@ export function Home() {
 
       // Multiple files: add all directly without modal
       if (imageFiles.length > 1) {
-        for (const file of imageFiles) {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const data = reader.result as string;
-            const imageId = addImage(file.name, data);
-            const name = file.name.replace(/\.[^.]+$/, "");
-            addCard(session.id, { name, count: 1, imageId });
-          };
-          reader.readAsDataURL(file);
-        }
+        void addFileCards(session.id, imageFiles);
         return;
       }
 
       // Single file: show modal with prefilled name
       const file = imageFiles[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const data = reader.result as string;
-        setDroppedImageName(file.name.replace(/\.[^.]+$/, ""));
+      void readDataUrl(file).then((data) => {
+        setDroppedImageName(cardName(file));
         setPastedImage(data);
-      };
-      reader.readAsDataURL(file);
+      });
     };
 
     document.addEventListener("dragenter", handleDragEnter);
@@ -200,7 +180,7 @@ export function Home() {
       document.removeEventListener("dragleave", handleDragLeave);
       document.removeEventListener("drop", handleDrop);
     };
-  }, [getActiveSession, addImage, addCard]);
+  }, [getActiveSession, addFileCards]);
 
   const activeSession = getActiveSession();
   const activeTemplate = activeSession ? templates.find((t) => t.id === activeSession.templateId) : undefined;
@@ -258,17 +238,7 @@ export function Home() {
     const files = e.target.files;
     if (!files || files.length === 0 || !activeSession) return;
 
-    for (const file of files) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const data = reader.result as string;
-        const imageId = addImage(file.name, data);
-        // Remove extension from filename for card name
-        const name = file.name.replace(/\.[^.]+$/, "");
-        addCard(activeSession.id, { name, count: 1, imageId });
-      };
-      reader.readAsDataURL(file);
-    }
+    void addFileCards(activeSession.id, Array.from(files));
 
     // Reset input so same files can be selected again
     e.target.value = "";
@@ -421,14 +391,7 @@ export function Home() {
           <Button onClick={() => setShowImport(true)} variant="accent">
             + Import Cards
           </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={handleFileSelect}
-            multiple
-            hidden
-          />
+          <input ref={fileInputRef} type="file" accept={IMAGE_ACCEPT} onChange={handleFileSelect} multiple hidden />
         </div>
 
         {cards.length > 0 && viewMode === "list" && (

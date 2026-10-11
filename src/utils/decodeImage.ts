@@ -1,7 +1,7 @@
 import type { RgbaPixels } from "@/utils/printRaster";
 
 /** Image formats the browser decodes for us */
-const DECODABLE_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
+export const DECODABLE_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
 
 export function mimeTypeOf(dataUrl: string): string {
   return dataUrl.slice("data:".length, dataUrl.indexOf(";"));

@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@/app/components/Button";
+import { useCallback, useState } from "react";
+import { Dropzone } from "@/app/components/Dropzone";
 import { Modal } from "@/app/components/Modal";
+import { usePastedImage } from "@/app/components/usePastedImage";
 import { useImageStore } from "@/app/store/images";
 import { CARD_BACKS } from "@/generated/assets";
+import { readDataUrl } from "@/utils/imageFiles";
 
 interface ImagePickerModalProps {
   onSelect: (imageId: string) => void;
@@ -14,68 +16,16 @@ type Tab = "upload" | "storage" | "defaults";
 export function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
   const { images, addImage, getImage } = useImageStore();
   const [tab, setTab] = useState<Tab>("upload");
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(
     (file: File) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const data = reader.result as string;
-        const imageId = addImage(file.name, data);
-        onSelect(imageId);
-      };
-      reader.readAsDataURL(file);
+      void readDataUrl(file).then((data) => onSelect(addImage(file.name, data)));
     },
     [addImage, onSelect]
   );
 
-  // Paste handler
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      for (const item of items) {
-        if (item.type.startsWith("image/")) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          const file = item.getAsFile();
-          if (file) handleFile(file);
-          break;
-        }
-      }
-    };
-
-    // Use capture phase to handle before other listeners
-    document.addEventListener("paste", handlePaste, true);
-    return () => document.removeEventListener("paste", handlePaste, true);
-  }, [handleFile]);
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-
-    const file = e.dataTransfer.files[0];
-    if (file?.type.startsWith("image/")) {
-      handleFile(file);
-    }
-  };
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFile(file);
-  };
+  // Takes pastes over the page underneath, which would add them as cards
+  usePastedImage(handleFile, { preempt: true });
 
   const handleSelectFromStorage = (imageId: string) => {
     onSelect(imageId);
@@ -133,23 +83,7 @@ export function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
       <div className="image-picker-content">
         {/* Upload tab */}
         {tab === "upload" && (
-          <div
-            className={`image-picker-dropzone ${isDragging ? "dragging" : ""}`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <p>Drop or paste image here</p>
-            <p className="muted">or</p>
-            <Button onClick={() => fileInputRef.current?.click()}>Choose File</Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={handleFileInput}
-              hidden
-            />
-          </div>
+          <Dropzone prompt="Drop or paste image here" onFiles={([file]) => file && handleFile(file)} />
         )}
 
         {/* Storage tab */}

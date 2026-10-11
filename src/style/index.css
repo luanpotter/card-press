@@ -320,6 +320,10 @@ label.toggle {
   height: 300px;
 }
 
+.load-images-content {
+  height: 200px;
+}
+
 .image-picker-dropzone {
   border: 2px dashed var(--border);
   padding: 2rem;

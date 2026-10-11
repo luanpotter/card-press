@@ -9,6 +9,7 @@ import type { Dimension } from "@/types/dimension";
 import { PAGE_DIMENSIONS, PageSize } from "@/types/page";
 import type { Slot, Template, Guideline, GuidelineDirection } from "@/types/template";
 import { generateGrid } from "@/utils/grid";
+import { readDataUrl } from "@/utils/imageFiles";
 import { generateGridGuidelines } from "@/types/template";
 import { useRef, useState } from "react";
 
@@ -151,13 +152,7 @@ export function TemplateModal({ template, existingNames, onSave, onClose }: Temp
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const data = reader.result as string;
-      const id = addPdf(file.name, data);
-      setBasePdfId(id);
-    };
-    reader.readAsDataURL(file);
+    void readDataUrl(file).then((data) => setBasePdfId(addPdf(file.name, data)));
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";

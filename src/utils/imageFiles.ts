@@ -29,14 +29,23 @@ export function validateImageFiles(files: Iterable<File>): { images: File[]; rej
   };
 }
 
-/** Read a file into a data URL, which is how images and PDFs are stored */
-export function readDataUrl(file: File): Promise<string> {
+/** Read a file (or any blob) into a data URL, which is how images and PDFs are stored */
+export function readDataUrl(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error ?? new Error(`Failed to read "${file.name}"`));
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
     reader.readAsDataURL(file);
   });
+}
+
+/** Download a file into a data URL, with its type as the server gives it */
+export async function fetchDataUrl(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to download ${url}: ${String(response.status)} ${response.statusText}`);
+  }
+  return await readDataUrl(await response.blob());
 }
 
 /** Name for a card made from a file: the file name without its extension */

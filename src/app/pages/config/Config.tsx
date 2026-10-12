@@ -58,7 +58,8 @@ export function Config() {
   const missingDefaults = DEFAULT_TEMPLATES.filter((dt) => !existingNames.has(dt.name));
 
   const handleLoadDefaults = () => {
-    loadDefaultTemplates();
+    // A failed download shows in the modules section
+    loadDefaultTemplates().catch(() => undefined);
   };
 
   const unusedPdfCount = pdfs.length - usedPdfIds.size;

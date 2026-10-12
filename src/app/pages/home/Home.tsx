@@ -84,10 +84,17 @@ export function Home() {
     // If no templates and no sessions, initialize with defaults
     if (templates.length === 0 && sessions.length === 0) {
       initRef.current = true;
-      const defaultId = loadDefaultTemplates();
-      if (defaultId) {
-        addSession({ name: "New Session", templateId: defaultId });
-      }
+      loadDefaultTemplates().then(
+        (defaultId) => {
+          if (defaultId) {
+            addSession({ name: "New Session", templateId: defaultId });
+          }
+        },
+        () => {
+          // The download failed (shown in Config); try again on the next change
+          initRef.current = false;
+        }
+      );
       return;
     }
 

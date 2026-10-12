@@ -5,6 +5,7 @@ import { usePastedImage } from "@/app/components/usePastedImage";
 import { useImageStore } from "@/app/store/images";
 import { CARD_BACKS } from "@/generated/assets";
 import { readDataUrl } from "@/utils/imageFiles";
+import { loadDefaultCardBacks } from "@/utils/lazyModules";
 
 interface ImagePickerModalProps {
   onSelect: (imageId: string) => void;
@@ -31,15 +32,18 @@ export function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
     onSelect(imageId);
   };
 
-  const handleSelectDefault = (defaultBack: (typeof CARD_BACKS)[number]) => {
+  const handleSelectDefault = async (defaultBack: (typeof CARD_BACKS)[number]) => {
     // Check if already in storage
     const existing = getImage(defaultBack.id);
     if (existing) {
       onSelect(existing.id);
-    } else {
-      // Add to storage and select
-      const imageId = addImage(defaultBack.name, defaultBack.data, defaultBack.id);
-      onSelect(imageId);
+      return;
+    }
+
+    // Add to storage and select, once downloaded
+    const data = (await loadDefaultCardBacks()).get(defaultBack.url);
+    if (data) {
+      onSelect(addImage(defaultBack.name, data, defaultBack.id));
     }
   };
 
@@ -111,10 +115,11 @@ export function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
                 key={back.id}
                 type="button"
                 className="image-picker-item"
-                onClick={() => handleSelectDefault(back)}
+                // A failed download shows in Config's modules section
+                onClick={() => void handleSelectDefault(back).catch(() => undefined)}
                 title={back.name}
               >
-                <img src={back.data} alt={back.name} />
+                <img src={back.url} alt={back.name} />
               </button>
             ))}
           </div>

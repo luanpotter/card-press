@@ -1,3 +1,7 @@
+import { CARD_BACKS } from "@/generated/assets";
+import { DEFAULT_TEMPLATES } from "@/types/template";
+import { fetchDataUrl } from "@/utils/imageFiles";
+
 /**
  * Parts of the app that are downloaded right after the page shows, rather than with it, so it shows sooner.
  * Using one before its download is done waits for that same download.
@@ -98,6 +102,19 @@ export const loadVectorSvg = lazyModule(
   "Vector SVG",
   "jsPDF and svg2pdf.js, for vector SVG output",
   () => import("@/utils/svgToPdf")
+);
+
+/** Download bundled files into data URLs, by URL, as images and PDFs are stored */
+async function fetchDataUrls(urls: string[]): Promise<Map<string, string>> {
+  return new Map(await Promise.all(urls.map(async (url) => [url, await fetchDataUrl(url)] as const)));
+}
+
+export const loadDefaultTemplatePdfs = lazyModule("Default templates", "the Cricut template PDFs", () =>
+  fetchDataUrls(DEFAULT_TEMPLATES.flatMap((template) => template.cricut?.bundledPdf?.url ?? []))
+);
+
+export const loadDefaultCardBacks = lazyModule("Default card backs", "the bundled card back images", () =>
+  fetchDataUrls(CARD_BACKS.map((back) => back.url))
 );
 
 /** Start every download, for each to be ready by the time it is needed; failures show in their status */

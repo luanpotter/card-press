@@ -94,7 +94,7 @@ fi
 run_check "Actionlint" actionlint
 
 # Check for unused dependencies
-run_check "Unused Dependencies" bunx depcheck --ignores="@types/*,@test/*,jiti,globals,bun,bun:test"
+run_check "Unused Dependencies" bunx depcheck --ignores="@types/*,@assets/*,@test/*,jiti,globals,bun,bun:test"
 
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 if [ "$FAILED" -eq 0 ]; then

@@ -25,10 +25,6 @@ require_cmd() {
 
 require_cmd bun
 
-# Clean previous build
-info "Cleaning dist folder..."
-rm -rf dist
-
 # Run linting first
 info "Running lint checks..."
 if ! bun lint; then
@@ -36,13 +32,9 @@ if ! bun lint; then
 fi
 success "Lint passed"
 
-# Generate assets
-info "Generate assets..."
-bun run generate
-
-# Build the static site
+# Clean, generate assets and build the static site, as package.json's build script does
 info "Building static site..."
-if ! bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --splitting --define:process.env.NODE_ENV='"production"'; then
+if ! bun run build; then
     error "Build failed"
 fi
 success "Build completed"

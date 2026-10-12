@@ -9,8 +9,8 @@ const WASM_URL = new URL(wasmUrl, typeof location === "undefined" ? "file://" : 
 
 let loading: Promise<void> | undefined;
 
-/** Load resvg on first use, as it weighs 2.5 MB; a failed load is retried next time */
-function loadResvg(): Promise<void> {
+/** Load resvg's WebAssembly, once; a failed load is retried next time */
+export function loadResvg(): Promise<void> {
   loading ??= initWasm(fetch(WASM_URL)).catch((error: unknown) => {
     loading = undefined;
     throw error;

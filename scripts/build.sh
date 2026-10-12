@@ -42,7 +42,7 @@ bun run generate
 
 # Build the static site
 info "Building static site..."
-if ! bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='"production"'; then
+if ! bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --splitting --define:process.env.NODE_ENV='"production"'; then
     error "Build failed"
 fi
 success "Build completed"

@@ -10,6 +10,7 @@ import { ConfirmModal } from "@/app/components/ConfirmModal";
 import { ErrorModal } from "@/app/components/ErrorModal";
 import { ProgressModal } from "@/app/components/ProgressModal";
 import { Table, type Column } from "@/app/components/Table";
+import { useModules } from "@/app/components/useModules";
 import { usePastedImage } from "@/app/components/usePastedImage";
 import { CardModal } from "@/app/pages/home/CardModal";
 import { CardBacksModal } from "@/app/pages/home/CardBacksModal";
@@ -209,6 +210,8 @@ export function Home() {
     getImage,
     getPdf,
   });
+  // A download the PDF waits for, when made before it was done
+  const awaitedModule = useModules().find((module) => module.needed);
 
   // Clear preview when cards become empty
   useEffect(() => {
@@ -502,7 +505,7 @@ export function Home() {
           title={previewing ? "Generating Preview" : "Generating PDF"}
           current={pdfProgress.current}
           total={pdfProgress.total}
-          label="Embedding cards..."
+          label={awaitedModule ? `Downloading ${awaitedModule.label}...` : "Embedding cards..."}
           onCancel={cancelGeneration}
         />
       )}

@@ -16,8 +16,8 @@ import type { Dimension } from "@/types/dimension";
 import { MirrorAxis, PAGE_DIMENSIONS } from "@/types/page";
 import { decodeImage, ImageFormat, imageFormatOf, isDecodable, mimeTypeOf } from "@/utils/decodeImage";
 import { type RgbaPixels, toPrintRaster } from "@/utils/printRaster";
+import { loadSvgRenderer, loadVectorSvg } from "@/utils/lazyModules";
 import { renderSvg } from "@/utils/renderSvg";
-import { svgToPdf } from "@/utils/svgToPdf";
 import { targetPixels } from "@/utils/printResolution";
 
 // Convert mm to PDF points (1 inch = 72 points, 1 inch = 25.4mm)
@@ -199,6 +199,7 @@ async function embedPixels(
  * Embed an SVG as vector graphics, sharp at any printer resolution
  */
 async function embedVectorSvg(pdfDoc: PDFDocument, image: StoredImage): Promise<EmbeddedCard> {
+  const { svgToPdf } = await loadVectorSvg();
   const svgPdf = await svgToPdf(new TextDecoder().decode(dataUrlToBytes(image.data)));
   const [page] = await pdfDoc.embedPdf(svgPdf);
   if (!page) {
@@ -220,6 +221,8 @@ async function embedCard(pdfDoc: PDFDocument, image: StoredImage, rendering: Car
   if (imageFormatOf(image.data) === ImageFormat.Svg) {
     switch (svgOutput) {
       case SvgOutput.RasterResvg:
+        // Through the loader, for its status to show while it downloads
+        await loadSvgRenderer();
         return await embedPixels(pdfDoc, await renderSvg(dataUrlToBytes(image.data), sizePx, background), rendering);
       case SvgOutput.RasterBrowser:
         return await embedPixels(pdfDoc, await decodeImage(image.data, sizePx), rendering);
@@ -490,21 +493,4 @@ export async function generatePdf({
   printAtActualSize(pdfDoc);
   const pdfBytes = await pdfDoc.save();
   return backs ? await mirrorPdf(pdfBytes, backs.mirror) : pdfBytes;
-}
-
-/**
- * Download a PDF as a file
- */
-export function downloadPdf(pdfBytes: Uint8Array, filename: string): void {
-  const blob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  URL.revokeObjectURL(url);
 }

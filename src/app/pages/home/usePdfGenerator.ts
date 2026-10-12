@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Template } from "@/types/template";
+import { loadPdfGenerator } from "@/utils/lazyModules";
 import {
   getCardBacks,
   getPrintDpi,
@@ -9,7 +10,6 @@ import {
   type CardBacks,
   type Session,
 } from "@/types/session";
-import { generatePdf, downloadPdf } from "@/utils/generatePdf";
 
 interface StoredImage {
   name: string;
@@ -50,6 +50,23 @@ interface UsePdfGeneratorResult {
   clearPreview: () => void;
   clearError: () => void;
   cancelGeneration: () => void;
+}
+
+/**
+ * Download a PDF as a file
+ */
+function downloadPdf(pdfBytes: Uint8Array, filename: string): void {
+  const blob = new Blob([new Uint8Array(pdfBytes)], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
 }
 
 interface Generation {
@@ -114,6 +131,8 @@ export function usePdfGenerator({
       setTimeout(() => {
         void (async () => {
           try {
+            // Downloaded after the page shows; waits for it if still on its way
+            const { generatePdf } = await loadPdfGenerator();
             const pdf = await generatePdf({
               template,
               cards,

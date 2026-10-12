@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { App } from "@/app/App";
+import { preloadModules } from "@/utils/lazyModules";
 
 import "drop-in-css/min";
 
@@ -22,3 +23,6 @@ if (import.meta.hot) {
   // The hot module reloading API is not available in production.
   createRoot(rootDiv).render(app);
 }
+
+// The page works without them, so they download only once it shows
+preloadModules();

@@ -1,12 +1,14 @@
 import { Box } from "@/app/components/Box";
 import { Button } from "@/app/components/Button";
 import { ConfirmModal } from "@/app/components/ConfirmModal";
+import { useModules } from "@/app/components/useModules";
 import { useImageStore } from "@/app/store/images";
 import { loadDefaultTemplates } from "@/app/store/loadDefaults";
 import { usePdfStore } from "@/app/store/pdfs";
 import { useSessionStore } from "@/app/store/sessions";
 import { useTemplateStore } from "@/app/store/templates";
 import { DEFAULT_TEMPLATES } from "@/types/template";
+import { ModuleStatus } from "@/utils/lazyModules";
 import { useState } from "react";
 import { LoadImagesModal } from "@/app/pages/config/LoadImagesModal";
 
@@ -20,6 +22,7 @@ function formatBytes(bytes: number): string {
 }
 
 export function Config() {
+  const modules = useModules();
   const { images, pruneImages, _hydrated: imagesHydrated } = useImageStore();
   const { pdfs, prunePdfs, _hydrated: pdfsHydrated } = usePdfStore();
   const { sessions, deleteAllSessions } = useSessionStore();
@@ -110,6 +113,26 @@ export function Config() {
             Delete All Sessions
           </Button>
         </Element>
+      </ElementBox>
+
+      <ElementBox label="Modules">
+        {modules.map((module) => (
+          <Element key={module.label}>
+            <span>
+              {module.label} <span className="muted">({module.description})</span>
+            </span>
+            {module.status === ModuleStatus.Failed ? (
+              <Buttons>
+                <span className="danger" title={module.error}>
+                  {module.status}
+                </span>
+                <Button onClick={() => void module.download().catch(() => undefined)}>Retry</Button>
+              </Buttons>
+            ) : (
+              <span className="muted">{module.status}</span>
+            )}
+          </Element>
+        ))}
       </ElementBox>
 
       <ElementBox label="Danger Zone" error="Exercise caution">

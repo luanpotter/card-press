@@ -101,7 +101,6 @@ export function usePdfGenerator({
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<PdfReport>();
   const abortControllerRef = useRef<AbortController | null>(null);
-
   const clearError = useCallback(() => setError(null), []);
 
   const cancelGeneration = useCallback(() => {

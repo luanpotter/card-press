@@ -3,6 +3,7 @@ import type { Rgb } from "@/types/color";
 import type { Dimension } from "@/types/dimension";
 import type { CardFit, RasterScaling } from "@/types/session";
 import { decodeImage } from "@/utils/decodeImage";
+import { deflate } from "@/utils/deflate";
 import { type RgbaPixels, toPrintRaster } from "@/utils/printRaster";
 import { fittedPixels } from "@/utils/printResolution";
 import { initResvg, renderSvg } from "@/utils/renderSvg";
@@ -36,15 +37,6 @@ export interface CardRaster {
   width: number;
   height: number;
   data: Uint8Array;
-}
-
-/**
- * Compress bytes into a PDF FlateDecode stream (zlib format).
- * The browser's native zlib is about 3× faster than pdf-lib's JavaScript one, for files 1-2% bigger.
- */
-async function deflate(bytes: Uint8Array): Promise<Uint8Array> {
-  const compressed = new Blob([bytes as BlobPart]).stream().pipeThrough(new CompressionStream("deflate"));
-  return new Uint8Array(await new Response(compressed).arrayBuffer());
 }
 
 async function sourcePixels(source: RasterSource, rendering: RasterRendering): Promise<RgbaPixels> {

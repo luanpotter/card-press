@@ -16,6 +16,7 @@ import type { Dimension } from "@/types/dimension";
 import { MirrorAxis, PAGE_DIMENSIONS } from "@/types/page";
 import type { CardRaster, RasterRendering, RasterSource } from "@/utils/cardRaster";
 import { decodeImage, ImageFormat, imageFormatOf } from "@/utils/decodeImage";
+import { flattenFirstPage } from "@/utils/flattenPdf";
 import { dataUrlToBytes } from "@/utils/imageFiles";
 import { loadRasterWorkers, loadSvgRenderer, loadVectorSvg } from "@/utils/lazyModules";
 import { checkCardImage } from "@/utils/preflight";
@@ -377,8 +378,9 @@ export async function generatePdf({
   if (template.cricut?.basePdfId) {
     const basePdf = getPdf(template.cricut.basePdfId);
     if (basePdf) {
-      const pdfBytes = dataUrlToBytes(basePdf.data);
-      basePdfDoc = await PDFDocument.load(pdfBytes);
+      basePdfDoc = await PDFDocument.load(dataUrlToBytes(basePdf.data));
+      // Printers handle transparency badly; the bundled templates are already flat, but uploads may not be
+      await flattenFirstPage(basePdfDoc);
 
       // Slots are measured on the template page, so a base page of another size misplaces every card
       const basePage = basePdfDoc.getPages()[0];

@@ -198,6 +198,19 @@ describe("generatePdf", () => {
     );
   });
 
+  test("flattens the transparency of a base PDF, like Cricut's soft-masked template image", async () => {
+    // A translucent image over the whole Letter page, as pdf-lib embeds it: with an SMask
+    const base = await PDFDocument.create();
+    const image = await base.embedPng(pngBytes(4, 4, [255, 0, 0, 128]));
+    base.addPage([612, 792]).drawImage(image, { x: 0, y: 0, width: 612, height: 792 });
+    const basePdf = dataUrl("application/pdf", await base.save());
+    const template = { ...TEMPLATE, cricut: { basePdfId: "base", cricutUrl: undefined } };
+
+    const [page] = (await inspectPdf(await generate([card("opaque")], { template, basePdf }))).pages;
+    expect(page?.images.map((image) => image.hasSMask)).toEqual([false, false]);
+    expect(page?.transparency).toEqual([]);
+  });
+
   test("refuses a base PDF whose page differs from the template's", async () => {
     const a4 = await PDFDocument.create();
     a4.addPage([595.28, 841.89]);

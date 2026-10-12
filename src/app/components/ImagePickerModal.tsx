@@ -17,6 +17,8 @@ type Tab = "upload" | "storage" | "defaults";
 export function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
   const { images, addImage, getImage } = useImageStore();
   const [tab, setTab] = useState<Tab>("upload");
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string>();
 
   const handleFile = useCallback(
     (file: File) => {
@@ -40,10 +42,18 @@ export function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
       return;
     }
 
-    // Add to storage and select, once downloaded
-    const data = (await loadDefaultCardBacks()).get(defaultBack.url);
-    if (data) {
-      onSelect(addImage(defaultBack.name, data, defaultBack.id));
+    // Add to storage and select, once downloaded; a failed download starts over on the next click
+    setDownloading(true);
+    setDownloadError(undefined);
+    try {
+      const data = (await loadDefaultCardBacks()).get(defaultBack.url);
+      if (data) {
+        onSelect(addImage(defaultBack.name, data, defaultBack.id));
+      }
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -109,19 +119,25 @@ export function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
 
         {/* Defaults tab */}
         {tab === "defaults" && (
-          <div className="image-picker-grid">
-            {CARD_BACKS.map((back) => (
-              <button
-                key={back.id}
-                type="button"
-                className="image-picker-item"
-                // A failed download shows in Config's modules section
-                onClick={() => void handleSelectDefault(back).catch(() => undefined)}
-                title={back.name}
-              >
-                <img src={back.url} alt={back.name} />
-              </button>
-            ))}
+          <div className="image-picker-defaults">
+            {downloading && <p className="muted">Downloading the card backs...</p>}
+            {downloadError && (
+              <p className="danger">Cannot download the card backs ({downloadError}). Click one to try again.</p>
+            )}
+            <div className="image-picker-grid">
+              {CARD_BACKS.map((back) => (
+                <button
+                  key={back.id}
+                  type="button"
+                  className="image-picker-item"
+                  onClick={() => void handleSelectDefault(back)}
+                  title={back.name}
+                  disabled={downloading}
+                >
+                  <img src={back.url} alt={back.name} />
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

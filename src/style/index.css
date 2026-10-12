@@ -356,6 +356,22 @@ label.toggle {
   overflow-y: auto;
 }
 
+/* Download messages above the grid, which takes what height is left */
+.image-picker-defaults {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+}
+
+.image-picker-defaults p {
+  margin: 0;
+}
+
+.image-picker-defaults .image-picker-grid {
+  min-height: 0;
+}
+
 .image-picker-item {
   aspect-ratio: 63 / 88;
   border: 1px solid var(--border);

@@ -18,11 +18,13 @@ export function initResvg(wasm: InitInput): Promise<void> {
  * Render an SVG with resvg, which draws the same in every browser, onto an opaque background.
  * resvg must be loaded first, with initResvg.
  *
+ * The target size is chosen from the SVG's own size.
  * resvg only scales uniformly, so the SVG is drawn just large enough to cover the target size on both axes:
  * a mismatched aspect ratio is then only ever scaled down to the target, never up.
  */
-export function renderSvg(svg: Uint8Array, target: Dimension, background: Rgb): RgbaPixels {
+export function renderSvg(svg: Uint8Array, targetFor: (own: Dimension) => Dimension, background: Rgb): RgbaPixels {
   const original = new Resvg(svg);
+  const target = targetFor({ width: original.width, height: original.height });
   const zoom = Math.max(target.width / original.width, target.height / original.height);
   original.free();
 

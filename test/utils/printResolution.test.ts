@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { PageSize } from "@/types/page";
 import type { Template } from "@/types/template";
-import { pageMegapixels, targetPixels } from "@/utils/printResolution";
+import { CardFit } from "@/types/session";
+import { fittedSize, pageMegapixels, targetPixels } from "@/utils/printResolution";
 
 describe("targetPixels", () => {
   test("prints the physical size at exactly the given resolution", () => {
@@ -12,6 +13,16 @@ describe("targetPixels", () => {
   test("rounds to whole pixels", () => {
     // MTG cards are 63×88mm, about 2.48×3.46in
     expect(targetPixels({ width: 63, height: 88 }, 600)).toEqual({ width: 1488, height: 2079 });
+  });
+});
+
+describe("fittedSize", () => {
+  test("stretches to the slot, or fits whole at the image's own ratio", () => {
+    const slot = { width: 63.5, height: 88.9 };
+    expect(fittedSize({ width: 300, height: 100 }, slot, CardFit.Stretch)).toEqual(slot);
+    // Wide: as wide as the slot; tall: as tall
+    expect(fittedSize({ width: 300, height: 100 }, slot, CardFit.Fit)).toEqual({ width: 63.5, height: 63.5 / 3 });
+    expect(fittedSize({ width: 100, height: 400 }, slot, CardFit.Fit)).toEqual({ width: 88.9 / 4, height: 88.9 });
   });
 });
 

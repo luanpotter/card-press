@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { PDFDocument, PrintScaling } from "pdf-lib";
-import { RasterScaling, SvgOutput, type Card } from "@/types/session";
+import { CardFit, RasterScaling, SvgOutput, type Card } from "@/types/session";
 import type { Template } from "@/types/template";
 import { MirrorAxis, PageSize } from "@/types/page";
 import { rasterizeCard } from "@/utils/cardRaster";
@@ -56,7 +56,14 @@ async function generate(
     template = TEMPLATE,
     basePdf,
     printDpi = 600,
-  }: { backs?: typeof HORIZONTAL_BACKS | undefined; template?: Template; basePdf?: string; printDpi?: number } = {}
+    cardFit = CardFit.Stretch,
+  }: {
+    backs?: typeof HORIZONTAL_BACKS | undefined;
+    template?: Template;
+    basePdf?: string;
+    printDpi?: number;
+    cardFit?: CardFit;
+  } = {}
 ): Promise<Uint8Array> {
   return await generatePdf({
     template,
@@ -68,6 +75,7 @@ async function generate(
     rasterScaling: RasterScaling.Lanczos,
     // The browser renderer needs a DOM
     svgOutput: SvgOutput.RasterResvg,
+    cardFit,
   });
 }
 
@@ -95,6 +103,18 @@ describe("generatePdf", () => {
       const { pages } = await inspectPdf(await generate([card("opaque")], { backs }));
       expect(pages[0]?.images[0]?.placedWidthMm).toBeCloseTo(63.5, 5);
       expect(pages[0]?.images[0]?.placedHeightMm).toBeCloseTo(88.9, 5);
+    }
+  });
+
+  test("fits cards whole at their own ratio, rendered at the print resolution, fronts and mirrored backs alike", async () => {
+    for (const backs of [undefined, HORIZONTAL_BACKS]) {
+      // A square JPEG and a square SVG, in a 2.5×3.5in slot: 2.5in square, 1500px at 600 dpi
+      const pdf = await generate([card("jpeg"), card("svg")], { backs, cardFit: CardFit.Fit });
+      for (const image of (await inspectPdf(pdf)).pages.flatMap((page) => page.images)) {
+        expect(image.placedWidthMm).toBeCloseTo(63.5, 5);
+        expect(image.placedHeightMm).toBeCloseTo(63.5, 5);
+        expect([image.pixelWidth, image.pixelHeight]).toEqual([1500, 1500]);
+      }
     }
   });
 

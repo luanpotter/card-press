@@ -54,6 +54,17 @@ export enum SvgOutput {
 // Consistent across browsers, and keeps masks and filters that a vector PDF would need transparency for
 export const DEFAULT_SVG_OUTPUT = SvgOutput.RasterResvg;
 
+/** How a card image is shaped to its slot */
+export enum CardFit {
+  /** Fills the slot exactly, distorted if its aspect ratio differs */
+  Stretch = "stretch",
+  /** As large as fits whole in the slot, centered, with the slot background in the strips left over */
+  Fit = "fit",
+}
+
+// Most card art is made at the card's own ratio, which both modes print the same
+export const DEFAULT_CARD_FIT = CardFit.Stretch;
+
 export interface Session {
   id: string;
   name: string;
@@ -69,6 +80,7 @@ export interface Session {
   printDpi?: number | undefined;
   rasterScaling?: RasterScaling | undefined;
   svgOutput?: SvgOutput | undefined;
+  cardFit?: CardFit | undefined;
 }
 
 export function getCardBacks(session: Session): CardBacks {
@@ -85,4 +97,8 @@ export function getRasterScaling(session: Session): RasterScaling {
 
 export function getSvgOutput(session: Session): SvgOutput {
   return session.svgOutput ?? DEFAULT_SVG_OUTPUT;
+}
+
+export function getCardFit(session: Session): CardFit {
+  return session.cardFit ?? DEFAULT_CARD_FIT;
 }

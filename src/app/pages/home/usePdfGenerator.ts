@@ -3,6 +3,7 @@ import type { Template } from "@/types/template";
 import { loadPdfGenerator } from "@/utils/lazyModules";
 import {
   getCardBacks,
+  getCardFit,
   getPrintDpi,
   getRasterScaling,
   getSvgOutput,
@@ -143,6 +144,7 @@ export function usePdfGenerator({
               printDpi: getPrintDpi(session),
               rasterScaling: getRasterScaling(session),
               svgOutput: getSvgOutput(session),
+              cardFit: getCardFit(session),
               onProgress: (current, total) => setPdfProgress({ current, total }),
               signal: abortController.signal,
             });

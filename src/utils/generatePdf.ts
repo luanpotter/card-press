@@ -10,13 +10,14 @@ import {
   rgb,
 } from "pdf-lib";
 import type { Template, Slot, Guideline } from "@/types/template";
-import { SvgOutput, type Card, type CardBacks, type RasterScaling } from "@/types/session";
+import { SvgOutput, type Card, type CardBacks, type CardFit, type RasterScaling } from "@/types/session";
 import { type Rgb, WHITE } from "@/types/color";
+import type { Dimension } from "@/types/dimension";
 import { MirrorAxis, PAGE_DIMENSIONS } from "@/types/page";
 import type { CardRaster, RasterRendering, RasterSource } from "@/utils/cardRaster";
 import { decodeImage, ImageFormat, imageFormatOf, isDecodable, mimeTypeOf } from "@/utils/decodeImage";
 import { loadRasterWorkers, loadSvgRenderer, loadVectorSvg } from "@/utils/lazyModules";
-import { targetPixels } from "@/utils/printResolution";
+import { fittedPixels, fittedSize, targetPixels } from "@/utils/printResolution";
 
 // Convert mm to PDF points (1 inch = 72 points, 1 inch = 25.4mm)
 const MM_TO_POINTS = 72 / 25.4;
@@ -46,6 +47,7 @@ interface GeneratePdfOptions {
   printDpi: number;
   rasterScaling: RasterScaling;
   svgOutput: SvgOutput;
+  cardFit: CardFit;
 }
 
 interface ExpandedCard {
@@ -149,12 +151,14 @@ function slotRect(
 
 /**
  * A card embedded in the document, ready to be drawn any number of times.
- * It is drawn by stretching its box, from the origin to its width and height, over the slot.
+ * It is drawn by stretching its box, from the origin to its width and height, over where it goes in the slot.
  */
 interface EmbeddedCard {
   ref: PDFRef;
   width: number;
   height: number;
+  /** Size of what it shows, in any unit, for its ratio */
+  shape: Dimension;
 }
 
 /** How card images are rendered for print, the same for every card of a document */
@@ -175,8 +179,13 @@ function embedRaster(pdfDoc: PDFDocument, raster: CardRaster): EmbeddedCard {
     ColorSpace: "DeviceRGB",
     Filter: "FlateDecode",
   });
-  // An image fills the unit square
-  return { ref: pdfDoc.context.register(stream), width: 1, height: 1 };
+  // An image fills the unit square, whatever its pixels' ratio
+  return {
+    ref: pdfDoc.context.register(stream),
+    width: 1,
+    height: 1,
+    shape: { width: raster.width, height: raster.height },
+  };
 }
 
 /**
@@ -189,18 +198,19 @@ async function embedVectorSvg(pdfDoc: PDFDocument, image: StoredImage): Promise<
   if (!page) {
     throw new Error("its vector conversion has no page");
   }
-  return { ref: page.ref, width: page.width, height: page.height };
+  const { width, height } = page;
+  return { ref: page.ref, width, height, shape: { width, height } };
 }
 
 /**
  * What a card is rasterized from, prepared on the page, where SVGs rendered by the browser have to be
  */
-async function rasterSource(image: StoredImage, { sizePx, svgOutput }: CardRendering): Promise<RasterSource> {
+async function rasterSource(image: StoredImage, { sizePx, svgOutput, fit }: CardRendering): Promise<RasterSource> {
   if (imageFormatOf(image.data) !== ImageFormat.Svg) {
     return { kind: "image", dataUrl: image.data };
   }
   if (svgOutput === SvgOutput.RasterBrowser) {
-    return { kind: "pixels", pixels: await decodeImage(image.data, sizePx) };
+    return { kind: "pixels", pixels: await decodeImage(image.data, (own) => fittedPixels(own, sizePx, fit)) };
   }
   // Through the loader, for its status to show while it downloads
   return { kind: "svg", svg: dataUrlToBytes(image.data), resvg: await loadSvgRenderer() };
@@ -241,11 +251,16 @@ function drawCardOnPage(
   pageHeight: number,
   card: EmbeddedCard,
   background: Rgb,
+  fit: CardFit,
   mirror: MirrorAxis | undefined
 ): void {
-  const { x, y, width, height } = slotRect(slot, cardWidth, cardHeight, pageHeight);
+  // Centered in the slot, which it fills unless fitted at its own ratio
+  const slotBox = slotRect(slot, cardWidth, cardHeight, pageHeight);
+  const { width, height } = fittedSize(card.shape, slotBox, fit);
+  const x = slotBox.x + (slotBox.width - width) / 2;
+  const y = slotBox.y + (slotBox.height - height) / 2;
 
-  // What shows through transparent parts of vector cards; images are flattened onto the same color, covering it
+  // What shows around fitted cards and through transparent parts of vector ones; images are flattened onto it
   drawEmptySlot(page, slot, cardWidth, cardHeight, pageHeight, background);
 
   // A negative size draws the card reversed, from the opposite edge of the same slot
@@ -336,6 +351,7 @@ export async function generatePdf({
   printDpi,
   rasterScaling,
   svgOutput,
+  cardFit,
 }: GeneratePdfOptions): Promise<Uint8Array> {
   const expandedCards = expandCards(cards);
 
@@ -388,6 +404,7 @@ export async function generatePdf({
     background: cardBackground,
     rasterScaling,
     svgOutput,
+    fit: cardFit,
   };
 
   // Each image is embedded once, however many cards and slots show it.
@@ -489,6 +506,7 @@ export async function generatePdf({
         pageDimensions.height,
         embeddedCard,
         cardBackground,
+        cardFit,
         backs?.mirror
       );
 

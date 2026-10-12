@@ -1,9 +1,10 @@
 import type { InitInput } from "@resvg/resvg-wasm";
 import type { Rgb } from "@/types/color";
 import type { Dimension } from "@/types/dimension";
-import type { RasterScaling } from "@/types/session";
+import type { CardFit, RasterScaling } from "@/types/session";
 import { decodeImage } from "@/utils/decodeImage";
 import { type RgbaPixels, toPrintRaster } from "@/utils/printRaster";
+import { fittedPixels } from "@/utils/printResolution";
 import { initResvg, renderSvg } from "@/utils/renderSvg";
 
 /**
@@ -13,11 +14,12 @@ import { initResvg, renderSvg } from "@/utils/renderSvg";
 
 /** How card images are rendered for print, the same for every card of a document */
 export interface RasterRendering {
-  /** Size of a card in pixels, at the print resolution */
+  /** Size of a card slot in pixels, at the print resolution */
   sizePx: Dimension;
   /** Color that images are flattened onto */
   background: Rgb;
   rasterScaling: RasterScaling;
+  fit: CardFit;
 }
 
 /** What a card is rasterized from */
@@ -45,13 +47,14 @@ async function deflate(bytes: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(await new Response(compressed).arrayBuffer());
 }
 
-async function sourcePixels(source: RasterSource, { sizePx, background }: RasterRendering): Promise<RgbaPixels> {
+async function sourcePixels(source: RasterSource, rendering: RasterRendering): Promise<RgbaPixels> {
+  const sizeFor = (own: Dimension) => fittedPixels(own, rendering.sizePx, rendering.fit);
   switch (source.kind) {
     case "image":
-      return await decodeImage(source.dataUrl, sizePx);
+      return await decodeImage(source.dataUrl, sizeFor);
     case "svg":
       await initResvg(source.resvg);
-      return renderSvg(source.svg, sizePx, background);
+      return renderSvg(source.svg, sizeFor, rendering.background);
     case "pixels":
       return source.pixels;
   }
@@ -60,9 +63,11 @@ async function sourcePixels(source: RasterSource, { sizePx, background }: Raster
 /**
  * Rasterize a card for print: opaque, at the print resolution unless kept at its own, losslessly compressed.
  * Printers resample images to their own grid and flatten transparency, both badly, so neither is left to them.
+ * A fitted card is rasterized at the size it prints at, rather than its slot's.
  */
 export async function rasterizeCard(source: RasterSource, rendering: RasterRendering): Promise<CardRaster> {
-  const { sizePx, background, rasterScaling } = rendering;
-  const rgb = await toPrintRaster(await sourcePixels(source, rendering), sizePx, background, rasterScaling);
+  const { sizePx, background, rasterScaling, fit } = rendering;
+  const pixels = await sourcePixels(source, rendering);
+  const rgb = await toPrintRaster(pixels, fittedPixels(pixels, sizePx, fit), background, rasterScaling);
   return { width: rgb.width, height: rgb.height, data: await deflate(rgb.data) };
 }

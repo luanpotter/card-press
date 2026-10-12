@@ -5,10 +5,13 @@ import { Select } from "@/app/components/Select";
 import { useTemplateStore } from "@/app/store/templates";
 import { RGB_HEX_PLACEHOLDER, rgbFromHex, rgbToHex } from "@/types/color";
 import {
+  CardFit,
+  DEFAULT_CARD_FIT,
   DEFAULT_EMPTY_SLOT_COLOR,
   DEFAULT_PRINT_DPI,
   DEFAULT_RASTER_SCALING,
   DEFAULT_SVG_OUTPUT,
+  getCardFit,
   getPrintDpi,
   getRasterScaling,
   getSvgOutput,
@@ -42,6 +45,7 @@ export function SessionModal({ session, existingNames, onSave, onClose }: Sessio
   const [printDpi, setPrintDpi] = useState(String(session ? getPrintDpi(session) : DEFAULT_PRINT_DPI));
   const [rasterScaling, setRasterScaling] = useState(session ? getRasterScaling(session) : DEFAULT_RASTER_SCALING);
   const [svgOutput, setSvgOutput] = useState(session ? getSvgOutput(session) : DEFAULT_SVG_OUTPUT);
+  const [cardFit, setCardFit] = useState(session ? getCardFit(session) : DEFAULT_CARD_FIT);
 
   const [errors, setErrors] = useState<{
     name?: string;
@@ -88,6 +92,7 @@ export function SessionModal({ session, existingNames, onSave, onClose }: Sessio
       printDpi: parsedDpi,
       rasterScaling,
       svgOutput,
+      cardFit,
     });
   };
 
@@ -139,6 +144,16 @@ export function SessionModal({ session, existingNames, onSave, onClose }: Sessio
           {MAX_PAGE_MEGAPIXELS} MP.
         </p>
       )}
+
+      <Select
+        label="Card Fit"
+        value={cardFit}
+        onChange={(value) => setCardFit(value as CardFit)}
+        options={[
+          { value: CardFit.Stretch, label: "Stretch" },
+          { value: CardFit.Fit, label: "Fit" },
+        ]}
+      />
 
       <Select
         label="Raster Scaling"

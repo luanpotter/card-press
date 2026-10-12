@@ -45,24 +45,25 @@ function drawPixels(
 }
 
 /**
- * Render an SVG with the browser's own renderer, at exactly the given size.
+ * Render an SVG with the browser's own renderer, at exactly the size chosen from its own.
  * Drawn straight at print size, its shapes stay sharp instead of being resampled from a smaller raster.
  */
-async function renderSvg(dataUrl: string, size: Dimension): Promise<RgbaPixels> {
+async function renderSvg(dataUrl: string, sizeFor: (own: Dimension) => Dimension): Promise<RgbaPixels> {
   // createImageBitmap does not take SVGs, but an image element renders them, with the system fonts
   const image = new Image();
   image.src = dataUrl;
   await image.decode();
+  const size = sizeFor({ width: image.naturalWidth, height: image.naturalHeight });
   return drawPixels(size.width, size.height, (context) => context.drawImage(image, 0, 0, size.width, size.height));
 }
 
 /**
  * Decode an image data URL into its pixels.
- * Rasters come out at their own size, and vectors are rendered at the given size.
+ * Rasters come out at their own size, and vectors are rendered at the size chosen from their own.
  */
-export async function decodeImage(dataUrl: string, size: Dimension): Promise<RgbaPixels> {
+export async function decodeImage(dataUrl: string, sizeFor: (own: Dimension) => Dimension): Promise<RgbaPixels> {
   if (imageFormatOf(dataUrl) === ImageFormat.Svg) {
-    return await renderSvg(dataUrl, size);
+    return await renderSvg(dataUrl, sizeFor);
   }
 
   const blob = await (await fetch(dataUrl)).blob();

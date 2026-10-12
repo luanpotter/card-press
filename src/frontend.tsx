@@ -25,4 +25,4 @@ if (import.meta.hot) {
 }
 
 // The page works without them, so they download only once it shows
-preloadModules();
+void preloadModules();

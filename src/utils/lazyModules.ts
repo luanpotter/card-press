@@ -93,6 +93,18 @@ function lazyModule<T>(label: string, description: string, importer: () => Promi
   };
 }
 
+/** Download bundled files into data URLs, by URL, as images and PDFs are stored */
+async function fetchDataUrls(urls: string[]): Promise<Map<string, string>> {
+  return new Map(await Promise.all(urls.map(async (url) => [url, await fetchDataUrl(url)] as const)));
+}
+
+// Declared in the order they are preloaded, the most likely to be needed soonest first
+
+/** A first visit waits for these to create its session */
+export const loadDefaultTemplatePdfs = lazyModule("Default templates", "the Cricut template PDFs", () =>
+  fetchDataUrls(DEFAULT_TEMPLATES.flatMap((template) => template.cricut?.bundledPdf?.url ?? []))
+);
+
 export const loadPdfGenerator = lazyModule(
   "PDF generator",
   "pdf-lib and the image pipeline",
@@ -103,6 +115,10 @@ export const loadRasterWorkers = lazyModule(
   "Image workers",
   "decoding and resizing card images, off the page",
   startRasterWorkers
+);
+
+export const loadDefaultCardBacks = lazyModule("Default card backs", "the bundled card back images", () =>
+  fetchDataUrls(CARD_BACKS.map((back) => back.url))
 );
 
 /** Compiled once here, for every image worker to instantiate */
@@ -120,22 +136,12 @@ export const loadVectorSvg = lazyModule(
   () => import("@/utils/svgToPdf")
 );
 
-/** Download bundled files into data URLs, by URL, as images and PDFs are stored */
-async function fetchDataUrls(urls: string[]): Promise<Map<string, string>> {
-  return new Map(await Promise.all(urls.map(async (url) => [url, await fetchDataUrl(url)] as const)));
-}
-
-export const loadDefaultTemplatePdfs = lazyModule("Default templates", "the Cricut template PDFs", () =>
-  fetchDataUrls(DEFAULT_TEMPLATES.flatMap((template) => template.cricut?.bundledPdf?.url ?? []))
-);
-
-export const loadDefaultCardBacks = lazyModule("Default card backs", "the bundled card back images", () =>
-  fetchDataUrls(CARD_BACKS.map((back) => back.url))
-);
-
-/** Start every download, for each to be ready by the time it is needed; failures show in their status */
-export function preloadModules(): void {
+/**
+ * Download every module, one at a time in order, so each gets all the bandwidth and the first needed come soonest.
+ * A module used meanwhile starts downloading right away; failures show in their status.
+ */
+export async function preloadModules(): Promise<void> {
   for (const { download } of snapshot) {
-    download().catch(() => undefined);
+    await download().catch(() => undefined);
   }
 }

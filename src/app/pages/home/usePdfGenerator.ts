@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import type { Template } from "@/types/template";
+import type { PageReport } from "@/utils/generatePdf";
 import { loadPdfGenerator } from "@/utils/lazyModules";
 import {
   getCardBacks,
@@ -35,6 +36,12 @@ interface UsePdfGeneratorProps {
   getPdf: (id: string) => StoredPdf | undefined;
 }
 
+/** What the last generated PDF holds */
+export interface PdfReport {
+  backs: boolean;
+  pages: PageReport[];
+}
+
 interface UsePdfGeneratorResult {
   // State
   generating: boolean;
@@ -43,6 +50,7 @@ interface UsePdfGeneratorResult {
   previewUrl: string | null;
   pdfProgress: PdfProgress;
   error: string | null;
+  report: PdfReport | undefined;
 
   // Actions
   handlePreview: () => void;
@@ -91,6 +99,7 @@ export function usePdfGenerator({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [pdfProgress, setPdfProgress] = useState<PdfProgress>({ current: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
+  const [report, setReport] = useState<PdfReport>();
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const clearError = useCallback(() => setError(null), []);
@@ -134,7 +143,7 @@ export function usePdfGenerator({
           try {
             // Downloaded after the page shows; waits for it if still on its way
             const { generatePdf } = await loadPdfGenerator();
-            const pdf = await generatePdf({
+            const { bytes, pages } = await generatePdf({
               template,
               cards,
               getImage,
@@ -148,7 +157,8 @@ export function usePdfGenerator({
               onProgress: (current, total) => setPdfProgress({ current, total }),
               signal: abortController.signal,
             });
-            onPdf(pdf);
+            setReport({ backs: backs !== undefined, pages });
+            onPdf(bytes);
           } catch (err) {
             // Don't show error for cancellation
             if (err instanceof DOMException && err.name === "AbortError") {
@@ -198,6 +208,7 @@ export function usePdfGenerator({
     previewUrl,
     pdfProgress,
     error,
+    report,
     handlePreview,
     handleGenerate,
     handleGenerateBacks,

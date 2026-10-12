@@ -39,6 +39,18 @@ export function readDataUrl(file: Blob): Promise<string> {
   });
 }
 
+/** The bytes of a stored (base64) data URL */
+export function dataUrlToBytes(dataUrl: string): Uint8Array {
+  const base64 = dataUrl.split(",")[1];
+  if (!base64) throw new Error("Invalid data URL");
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
 /** Download a file into a data URL, with its type as the server gives it */
 export async function fetchDataUrl(url: string): Promise<string> {
   const response = await fetch(url);

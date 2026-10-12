@@ -6,7 +6,7 @@ import type { Template } from "@/types/template";
 import { MirrorAxis, PageSize } from "@/types/page";
 import { rasterizeCard } from "@/utils/cardRaster";
 import * as decoding from "@/utils/decodeImage";
-import { generatePdf } from "@/utils/generatePdf";
+import { type GeneratedPdf, generatePdf } from "@/utils/generatePdf";
 import * as lazyModules from "@/utils/lazyModules";
 import type { RasterWorkers } from "@/utils/rasterWorkers";
 import { decodeImage } from "@test/helpers/decodeImage";
@@ -66,7 +66,21 @@ function card(imageId: string, count = 1): Card {
   return { id: imageId, name: imageId, count, imageId };
 }
 
-async function generate(
+interface GenerateOptions {
+  backs?: typeof HORIZONTAL_BACKS | undefined;
+  template?: Template;
+  basePdf?: string;
+  printDpi?: number;
+  cardFit?: CardFit;
+  svgOutput?: SvgOutput;
+}
+
+/** The PDF's bytes, as most tests only look at the PDF */
+async function generate(cards: Card[], options: GenerateOptions = {}): Promise<Uint8Array> {
+  return (await generateReported(cards, options)).bytes;
+}
+
+async function generateReported(
   cards: Card[],
   {
     backs,
@@ -76,15 +90,8 @@ async function generate(
     cardFit = CardFit.Stretch,
     // The browser renderer needs a DOM
     svgOutput = SvgOutput.RasterResvg,
-  }: {
-    backs?: typeof HORIZONTAL_BACKS | undefined;
-    template?: Template;
-    basePdf?: string;
-    printDpi?: number;
-    cardFit?: CardFit;
-    svgOutput?: SvgOutput;
-  } = {}
-): Promise<Uint8Array> {
+  }: GenerateOptions
+): Promise<GeneratedPdf> {
   return await generatePdf({
     template,
     cards,
@@ -115,6 +122,16 @@ describe("generatePdf", () => {
     expect(pages.map((page) => page.images.length)).toEqual([2, 1]);
     expect(pages[0]?.widthMm).toBeCloseTo(215.9, 5);
     expect(pages[0]?.heightMm).toBeCloseTo(279.4, 5);
+  });
+
+  test("reports the cards and raster of each page", async () => {
+    const { pages } = await generateReported([card("opaque", 3)], {});
+
+    // 1500×2100 cards at 600 dpi
+    expect(pages).toEqual([
+      { rasterCards: 2, vectorCards: 0, megapixels: 6.3 },
+      { rasterCards: 1, vectorCards: 0, megapixels: 3.15 },
+    ]);
   });
 
   test("places cards at the card size, fronts and mirrored backs alike", async () => {

@@ -15,10 +15,11 @@ import { type Rgb, WHITE } from "@/types/color";
 import type { Dimension } from "@/types/dimension";
 import { MirrorAxis, PAGE_DIMENSIONS } from "@/types/page";
 import type { CardRaster, RasterRendering, RasterSource } from "@/utils/cardRaster";
-import { decodeImage, ImageFormat, imageFormatOf, isDecodable, mimeTypeOf } from "@/utils/decodeImage";
+import { decodeImage, ImageFormat, imageFormatOf } from "@/utils/decodeImage";
+import { dataUrlToBytes } from "@/utils/imageFiles";
 import { loadRasterWorkers, loadSvgRenderer, loadVectorSvg } from "@/utils/lazyModules";
+import { checkCardImage } from "@/utils/preflight";
 import { fittedPixels, fittedSize, targetPixels } from "@/utils/printResolution";
-import { checkSvgOutput, parseSvg } from "@/utils/svgSupport";
 
 // Convert mm to PDF points (1 inch = 72 points, 1 inch = 25.4mm)
 const MM_TO_POINTS = 72 / 25.4;
@@ -31,6 +32,19 @@ interface StoredImage {
 interface StoredPdf {
   name: string;
   data: string; // data URL
+}
+
+/** What a page of a generated PDF holds, for the user to check before printing */
+export interface PageReport {
+  rasterCards: number;
+  vectorCards: number;
+  /** Raster on the page, in millions of pixels */
+  megapixels: number;
+}
+
+export interface GeneratedPdf {
+  bytes: Uint8Array;
+  pages: PageReport[];
 }
 
 interface GeneratePdfOptions {
@@ -119,20 +133,6 @@ async function mirrorPdf(pdfBytes: Uint8Array, mirror: MirrorAxis): Promise<Uint
 }
 
 /**
- * Convert data URL to Uint8Array
- */
-function dataUrlToBytes(dataUrl: string): Uint8Array {
-  const base64 = dataUrl.split(",")[1];
-  if (!base64) throw new Error("Invalid data URL");
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
-
-/**
  * Where a slot lands on the page, in PDF points.
  * The PDF origin is bottom-left, while slots are measured from the top of the page in mm.
  */
@@ -160,6 +160,8 @@ interface EmbeddedCard {
   height: number;
   /** Size of what it shows, in any unit, for its ratio */
   shape: Dimension;
+  /** Whether it is an image, rather than vector graphics */
+  raster: boolean;
 }
 
 /** How card images are rendered for print, the same for every card of a document */
@@ -186,6 +188,7 @@ function embedRaster(pdfDoc: PDFDocument, raster: CardRaster): EmbeddedCard {
     width: 1,
     height: 1,
     shape: { width: raster.width, height: raster.height },
+    raster: true,
   };
 }
 
@@ -200,7 +203,7 @@ async function embedVectorSvg(pdfDoc: PDFDocument, svg: Element): Promise<Embedd
     throw new Error("its vector conversion has no page");
   }
   const { width, height } = page;
-  return { ref: page.ref, width, height, shape: { width, height } };
+  return { ref: page.ref, width, height, shape: { width, height }, raster: false };
 }
 
 /**
@@ -228,16 +231,9 @@ async function embedCard(
   rendering: CardRendering,
   signal: AbortSignal
 ): Promise<EmbeddedCard> {
-  if (!isDecodable(image.data)) {
-    throw new Error(`${mimeTypeOf(image.data)} images are not supported`);
-  }
-  const { svgOutput } = rendering;
-  if (imageFormatOf(image.data) === ImageFormat.Svg && svgOutput !== SvgOutput.RasterBrowser) {
-    const svg = parseSvg(new TextDecoder().decode(dataUrlToBytes(image.data)));
-    checkSvgOutput(svg, svgOutput);
-    if (svgOutput === SvgOutput.Vector) {
-      return await embedVectorSvg(pdfDoc, svg);
-    }
+  const svg = checkCardImage(image.data, rendering.svgOutput);
+  if (svg && rendering.svgOutput === SvgOutput.Vector) {
+    return await embedVectorSvg(pdfDoc, svg);
   }
 
   const workers = await loadRasterWorkers();
@@ -343,7 +339,7 @@ function drawGuidelines(page: PDFPage, guidelines: Guideline[], pageWidthMm: num
 }
 
 /**
- * Generate a PDF with cards placed according to the template
+ * Generate a PDF with cards placed according to the template, reporting what each page holds
  */
 export async function generatePdf({
   template,
@@ -358,7 +354,7 @@ export async function generatePdf({
   rasterScaling,
   svgOutput,
   cardFit,
-}: GeneratePdfOptions): Promise<Uint8Array> {
+}: GeneratePdfOptions): Promise<GeneratedPdf> {
   const expandedCards = expandCards(cards);
 
   if (expandedCards.length === 0) {
@@ -435,7 +431,11 @@ export async function generatePdf({
   }
 
   // Process each page worth of cards
+  const reports: PageReport[] = [];
   for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+    const report: PageReport = { rasterCards: 0, vectorCards: 0, megapixels: 0 };
+    reports.push(report);
+
     // Get or create the page
     let page: PDFPage;
 
@@ -515,6 +515,13 @@ export async function generatePdf({
         cardFit,
         backs?.mirror
       );
+      if (embeddedCard.raster) {
+        report.rasterCards++;
+        // A raster's shape is its size in pixels
+        report.megapixels += (embeddedCard.shape.width * embeddedCard.shape.height) / 1e6;
+      } else {
+        report.vectorCards++;
+      }
 
       // Yield to main thread periodically to keep UI responsive
       if (slotIndex % 3 === 0) {
@@ -525,5 +532,5 @@ export async function generatePdf({
 
   printAtActualSize(pdfDoc);
   const pdfBytes = await pdfDoc.save();
-  return backs ? await mirrorPdf(pdfBytes, backs.mirror) : pdfBytes;
+  return { bytes: backs ? await mirrorPdf(pdfBytes, backs.mirror) : pdfBytes, pages: reports };
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadDefaultTemplates } from "@/app/store/loadDefaults";
 import { useSessionStore } from "@/app/store/sessions";
 import { useTemplateStore } from "@/app/store/templates";
@@ -17,12 +17,59 @@ import { CardBacksModal } from "@/app/pages/home/CardBacksModal";
 import { QuickAddCardModal } from "@/app/pages/home/QuickAddCardModal";
 import { ImportCardsModal } from "@/app/pages/home/ImportCardsModal";
 import { SessionModal } from "@/app/pages/sessions/SessionModal";
-import { usePdfGenerator } from "@/app/pages/home/usePdfGenerator";
+import { type PdfReport, usePdfGenerator } from "@/app/pages/home/usePdfGenerator";
 import type { FetchResult } from "@/sources/index";
-import { getCardBacks, type Card, type Session } from "@/types/session";
+import {
+  DEFAULT_SVG_OUTPUT,
+  getCardBacks,
+  getSvgOutput,
+  type Card,
+  type Session,
+  type SvgOutput,
+} from "@/types/session";
 import { cardName, IMAGE_ACCEPT, readDataUrl, validateImageFiles } from "@/utils/imageFiles";
+import type { PageReport } from "@/utils/generatePdf";
+import { cardImageProblem } from "@/utils/preflight";
+import { MAX_PAGE_MEGAPIXELS } from "@/utils/printResolution";
 
 type ViewMode = "list" | "images";
+
+/** Why each stored image cannot print with the given SVG output, if it cannot */
+function useImageProblems(svgOutput: SvgOutput): Map<string, string | undefined> {
+  const { images } = useImageStore();
+  return useMemo(
+    () => new Map(images.map((image) => [image.id, cardImageProblem(image.data, svgOutput)])),
+    [images, svgOutput]
+  );
+}
+
+/** Flags something that cannot print, saying why on hover */
+function ProblemMark({ problems }: { problems: string[] }) {
+  if (problems.length === 0) return null;
+  return (
+    <span className="danger" title={problems.join("\n")}>
+      {" "}
+      ⚠
+    </span>
+  );
+}
+
+/** What the last generated PDF holds, warning of pages too heavy for printers */
+function PdfSummary({ report }: { report: PdfReport }) {
+  const count = (n: number, noun: string) => `${String(n)} ${noun}${n === 1 ? "" : "s"}`;
+  const sum = (key: keyof PageReport) => report.pages.reduce((total, page) => total + page[key], 0);
+  const heaviest = Math.max(0, ...report.pages.map((page) => page.megapixels));
+  const tooHeavy = heaviest > MAX_PAGE_MEGAPIXELS;
+
+  return (
+    <p className={tooHeavy ? "danger" : "muted"}>
+      Last {report.backs ? "backs " : ""}PDF: {count(report.pages.length, "page")} •{" "}
+      {count(sum("rasterCards"), "raster card")}, {count(sum("vectorCards"), "vector card")} • fullest page{" "}
+      {heaviest.toFixed(1)} MP
+      {tooHeavy && `, over the ${String(MAX_PAGE_MEGAPIXELS)} MP printers handle well: lower the DPI`}
+    </p>
+  );
+}
 
 function LazyCardImage({ imageId, alt }: { imageId: string; alt: string }) {
   const { getImage } = useImageStore();
@@ -204,6 +251,7 @@ export function Home() {
     previewUrl,
     pdfProgress,
     error: pdfError,
+    report: pdfReport,
     handlePreview,
     handleGenerate,
     handleGenerateBacks,
@@ -219,6 +267,11 @@ export function Home() {
   });
   // A download the PDF waits for, when made before it was done
   const awaitedModule = useModules().find((module) => module.needed);
+
+  // Why images cannot print with the session's settings, to flag their cards before generating.
+  // Checked only when the images or settings change, as SVGs are parsed for it.
+  const imageProblems = useImageProblems(activeSession ? getSvgOutput(activeSession) : DEFAULT_SVG_OUTPUT);
+  const imageProblem = (imageId: string | undefined) => (imageId ? imageProblems.get(imageId) : undefined);
 
   // Clear preview when cards become empty
   useEffect(() => {
@@ -316,12 +369,30 @@ export function Home() {
     );
   }
 
+  const cardBacks = getCardBacks(activeSession);
+
+  /** Why a card cannot print: its front, or its own back (the default back is flagged on the session) */
+  const cardProblems = (card: Card): string[] => {
+    const front = imageProblem(card.imageId);
+    const back = cardBacks.enabled ? imageProblem(card.cardBackId) : undefined;
+    return [front && `Cannot print: ${front}`, back && `Cannot print its back: ${back}`].filter(
+      (problem) => problem !== undefined
+    );
+  };
+  const defaultBackProblem = cardBacks.enabled ? imageProblem(cardBacks.defaultBackId) : undefined;
+  const flaggedCards = cards.filter((card) => cardProblems(card).length > 0).length;
+
   const cardColumns: Column<Card>[] = [
     {
       key: "name",
       header: "Name",
       main: true,
-      render: (card) => card.name,
+      render: (card) => (
+        <>
+          {card.name}
+          <ProblemMark problems={cardProblems(card)} />
+        </>
+      ),
     },
     {
       key: "count",
@@ -367,8 +438,6 @@ export function Home() {
 
   const existingSessionNames = new Set(sessions.map((s) => s.name));
 
-  const cardBacks = getCardBacks(activeSession);
-
   const handleSaveSession = (updates: Omit<Session, "id" | "cards">) => {
     updateSession(activeSession.id, updates);
     setShowEditSession(false);
@@ -387,6 +456,12 @@ export function Home() {
         <div className="muted">
           {activeTemplate?.name ?? "Unknown"} • {activeTemplate?.slots.length ?? 0} slots
           {cardBacks.enabled && " • Card Backs ✓"}
+          {defaultBackProblem && (
+            <span className="danger" title={defaultBackProblem}>
+              {" "}
+              • Default back cannot print ⚠
+            </span>
+          )}
         </div>
       </Box>
 
@@ -427,11 +502,17 @@ export function Home() {
                   setDeletingCard(card);
                 }}
                 style={{ opacity: dragIndex === index ? 0.5 : 1 }}
-                title={`${card.name} (×${String(card.count)}) • Click to edit, right-click to delete`}
+                title={[
+                  `${card.name} (×${String(card.count)}) • Click to edit, right-click to delete`,
+                  ...cardProblems(card),
+                ].join("\n")}
               >
                 <LazyCardImage imageId={card.imageId} alt={card.name} />
                 <span className="card-icon-name">{card.name}</span>
-                <span className="card-icon-count">×{card.count}</span>
+                <span className="card-icon-count">
+                  ×{card.count}
+                  <ProblemMark problems={cardProblems(card)} />
+                </span>
               </div>
             ))}
           </div>
@@ -441,6 +522,12 @@ export function Home() {
       </Box>
 
       <Box label="PDF">
+        {flaggedCards > 0 && (
+          <p className="danger">
+            {flaggedCards === 1 ? "1 card" : `${String(flaggedCards)} cards`} cannot print with this session&apos;s
+            settings: hover their ⚠ for why.
+          </p>
+        )}
         <div className="right">
           <Button onClick={handlePreview} disabled={cards.length === 0 || previewing}>
             {previewing ? "Loading..." : "Preview"}
@@ -454,6 +541,7 @@ export function Home() {
             </Button>
           )}
         </div>
+        {pdfReport && <PdfSummary report={pdfReport} />}
         {previewUrl && (
           <iframe
             src={previewUrl}

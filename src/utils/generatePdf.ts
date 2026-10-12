@@ -18,6 +18,7 @@ import type { CardRaster, RasterRendering, RasterSource } from "@/utils/cardRast
 import { decodeImage, ImageFormat, imageFormatOf, isDecodable, mimeTypeOf } from "@/utils/decodeImage";
 import { loadRasterWorkers, loadSvgRenderer, loadVectorSvg } from "@/utils/lazyModules";
 import { fittedPixels, fittedSize, targetPixels } from "@/utils/printResolution";
+import { checkSvgOutput, parseSvg } from "@/utils/svgSupport";
 
 // Convert mm to PDF points (1 inch = 72 points, 1 inch = 25.4mm)
 const MM_TO_POINTS = 72 / 25.4;
@@ -191,9 +192,9 @@ function embedRaster(pdfDoc: PDFDocument, raster: CardRaster): EmbeddedCard {
 /**
  * Embed an SVG as vector graphics, sharp at any printer resolution
  */
-async function embedVectorSvg(pdfDoc: PDFDocument, image: StoredImage): Promise<EmbeddedCard> {
+async function embedVectorSvg(pdfDoc: PDFDocument, svg: Element): Promise<EmbeddedCard> {
   const { svgToPdf } = await loadVectorSvg();
-  const svgPdf = await svgToPdf(new TextDecoder().decode(dataUrlToBytes(image.data)));
+  const svgPdf = await svgToPdf(svg);
   const [page] = await pdfDoc.embedPdf(svgPdf);
   if (!page) {
     throw new Error("its vector conversion has no page");
@@ -230,8 +231,13 @@ async function embedCard(
   if (!isDecodable(image.data)) {
     throw new Error(`${mimeTypeOf(image.data)} images are not supported`);
   }
-  if (imageFormatOf(image.data) === ImageFormat.Svg && rendering.svgOutput === SvgOutput.Vector) {
-    return await embedVectorSvg(pdfDoc, image);
+  const { svgOutput } = rendering;
+  if (imageFormatOf(image.data) === ImageFormat.Svg && svgOutput !== SvgOutput.RasterBrowser) {
+    const svg = parseSvg(new TextDecoder().decode(dataUrlToBytes(image.data)));
+    checkSvgOutput(svg, svgOutput);
+    if (svgOutput === SvgOutput.Vector) {
+      return await embedVectorSvg(pdfDoc, svg);
+    }
   }
 
   const workers = await loadRasterWorkers();

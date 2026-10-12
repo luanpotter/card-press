@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { Window } from "happy-dom";
 import { PDFDocument, PrintScaling } from "pdf-lib";
 import { CardFit, RasterScaling, SvgOutput, type Card } from "@/types/session";
 import type { Template } from "@/types/template";
@@ -14,6 +15,9 @@ import { inspectPdf } from "@test/helpers/inspectPdf";
 
 // The browser decoder needs createImageBitmap and a canvas
 void mock.module("@/utils/decodeImage", () => ({ ...decoding, decodeImage }));
+
+// SVGs are checked by parsing them, as the page does
+globalThis.DOMParser = new Window().DOMParser as unknown as typeof DOMParser;
 
 // The workers run the same rasterizer, which runs here in the test instead
 const inThread: RasterWorkers = {
@@ -39,9 +43,22 @@ const IMAGES: Record<string, string> = {
   opaque: dataUrl("image/png", pngBytes(250, 350, [0, 255, 0, 255])),
   jpeg: dataUrl("image/jpeg", jpegBytes(2, 2, [0x33, 0x66, 0x99])),
   svg: dataUrl("image/svg+xml", SVG_BYTES),
+  text: dataUrl("image/svg+xml", svgBytes('<text x="1" y="9"><tspan>Hi</tspan></text>')),
+  // Left behind by editors, or commented out: nothing to draw
+  noText: dataUrl("image/svg+xml", svgBytes('<!-- <text>Hi</text> --><text x="1" y="9"><tspan> </tspan></text>')),
+  blur: dataUrl(
+    "image/svg+xml",
+    svgBytes(
+      '<filter id="f"><feGaussianBlur stdDeviation="1"/></filter><rect width="10" height="10" filter="url(#f)"/>'
+    )
+  ),
   // Browsers don't decode TIFFs
   tiff: dataUrl("image/tiff", new Uint8Array()),
 };
+
+function svgBytes(content: string): Uint8Array {
+  return new TextEncoder().encode(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">${content}</svg>`);
+}
 
 const HORIZONTAL_BACKS = { defaultBackId: "jpeg", mirror: MirrorAxis.Horizontal };
 
@@ -57,12 +74,15 @@ async function generate(
     basePdf,
     printDpi = 600,
     cardFit = CardFit.Stretch,
+    // The browser renderer needs a DOM
+    svgOutput = SvgOutput.RasterResvg,
   }: {
     backs?: typeof HORIZONTAL_BACKS | undefined;
     template?: Template;
     basePdf?: string;
     printDpi?: number;
     cardFit?: CardFit;
+    svgOutput?: SvgOutput;
   } = {}
 ): Promise<Uint8Array> {
   return await generatePdf({
@@ -73,8 +93,7 @@ async function generate(
     backs,
     printDpi,
     rasterScaling: RasterScaling.Lanczos,
-    // The browser renderer needs a DOM
-    svgOutput: SvgOutput.RasterResvg,
+    svgOutput,
     cardFit,
   });
 }
@@ -138,6 +157,27 @@ describe("generatePdf", () => {
     expect(await rejection(generate([card("tiff")]))).toHaveProperty(
       "message",
       'Cannot print "tiff": image/tiff images are not supported'
+    );
+  });
+
+  test("refuses SVG text where it cannot be drawn with its font, rather than dropping or swapping it", async () => {
+    for (const [svgOutput, reason] of [
+      [SvgOutput.RasterResvg, "Raster (resvg) has no fonts"],
+      [SvgOutput.Vector, "Vector cannot embed its fonts"],
+    ] as const) {
+      expect(await rejection(generate([card("text")], { svgOutput }))).toHaveProperty(
+        "message",
+        `Cannot print "text": it has text, and ${reason}: convert its text to curves (outlines) in the SVG, ` +
+          "or use the Raster (browser) SVG output"
+      );
+    }
+    expect((await inspectPdf(await generate([card("noText")]))).pages[0]?.images).toHaveLength(1);
+  });
+
+  test("refuses SVGs with parts vector output would leave out", async () => {
+    expect(await rejection(generate([card("blur")], { svgOutput: SvgOutput.Vector }))).toHaveProperty(
+      "message",
+      'Cannot print "blur": uses filter, feGaussianBlur, which vector output cannot draw: use a raster SVG output'
     );
   });
 

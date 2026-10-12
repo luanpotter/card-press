@@ -8,7 +8,8 @@ import globals from "globals";
 
 export default defineConfig(
   {
-    ignores: ["dist", "node_modules"],
+    // Built bundles, such as the image worker
+    ignores: ["dist", "node_modules", "src/generated/*.js"],
   },
   eslint.configs.recommended,
   tseslint.configs.strictTypeChecked,

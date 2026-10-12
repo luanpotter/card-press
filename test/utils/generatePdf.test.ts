@@ -3,14 +3,23 @@ import { PDFDocument, PrintScaling } from "pdf-lib";
 import { RasterScaling, SvgOutput, type Card } from "@/types/session";
 import type { Template } from "@/types/template";
 import { MirrorAxis, PageSize } from "@/types/page";
+import { rasterizeCard } from "@/utils/cardRaster";
 import * as decoding from "@/utils/decodeImage";
 import { generatePdf } from "@/utils/generatePdf";
+import * as lazyModules from "@/utils/lazyModules";
+import type { RasterWorkers } from "@/utils/rasterWorkers";
 import { decodeImage } from "@test/helpers/decodeImage";
 import { dataUrl, jpegBytes, pngBytes, SVG_BYTES } from "@test/helpers/images";
 import { inspectPdf } from "@test/helpers/inspectPdf";
 
 // The browser decoder needs createImageBitmap and a canvas
 void mock.module("@/utils/decodeImage", () => ({ ...decoding, decodeImage }));
+
+// The workers run the same rasterizer, which runs here in the test instead
+const inThread: RasterWorkers = {
+  rasterize: async (prepare, rendering) => await rasterizeCard(await prepare(), rendering),
+};
+void mock.module("@/utils/lazyModules", () => ({ ...lazyModules, loadRasterWorkers: () => Promise.resolve(inThread) }));
 
 const TEMPLATE: Template = {
   id: "test",

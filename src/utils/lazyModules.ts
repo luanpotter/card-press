@@ -1,6 +1,11 @@
 import { CARD_BACKS } from "@/generated/assets";
 import { DEFAULT_TEMPLATES } from "@/types/template";
 import { fetchDataUrl } from "@/utils/imageFiles";
+import { startRasterWorkers } from "@/utils/rasterWorkers";
+import resvgWasmUrl from "@resvg/resvg-wasm/index_bg.wasm" with { type: "file" };
+
+// Bundled, the import is a URL relative to the page; under Bun (in tests), a file path
+const RESVG_WASM_URL = new URL(resvgWasmUrl, typeof location === "undefined" ? "file://" : location.href);
 
 /**
  * Parts of the app that are downloaded right after the page shows, rather than with it, so it shows sooner.
@@ -94,9 +99,20 @@ export const loadPdfGenerator = lazyModule(
   () => import("@/utils/generatePdf")
 );
 
-export const loadSvgRenderer = lazyModule("SVG renderer", "resvg, for raster SVG output", () =>
-  import("@/utils/renderSvg").then(({ loadResvg }) => loadResvg())
+export const loadRasterWorkers = lazyModule(
+  "Image workers",
+  "decoding and resizing card images, off the page",
+  startRasterWorkers
 );
+
+/** Compiled once here, for every image worker to instantiate */
+export const loadSvgRenderer = lazyModule("SVG renderer", "resvg, for raster SVG output", async () => {
+  const response = await fetch(RESVG_WASM_URL);
+  if (!response.ok) {
+    throw new Error(`HTTP ${String(response.status)}`);
+  }
+  return await WebAssembly.compile(await response.arrayBuffer());
+});
 
 export const loadVectorSvg = lazyModule(
   "Vector SVG",

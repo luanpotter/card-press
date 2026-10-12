@@ -12,12 +12,10 @@ import {
 import type { Template, Slot, Guideline } from "@/types/template";
 import { SvgOutput, type Card, type CardBacks, type RasterScaling } from "@/types/session";
 import { type Rgb, WHITE } from "@/types/color";
-import type { Dimension } from "@/types/dimension";
 import { MirrorAxis, PAGE_DIMENSIONS } from "@/types/page";
+import type { CardRaster, RasterRendering, RasterSource } from "@/utils/cardRaster";
 import { decodeImage, ImageFormat, imageFormatOf, isDecodable, mimeTypeOf } from "@/utils/decodeImage";
-import { type RgbaPixels, toPrintRaster } from "@/utils/printRaster";
-import { loadSvgRenderer, loadVectorSvg } from "@/utils/lazyModules";
-import { renderSvg } from "@/utils/renderSvg";
+import { loadRasterWorkers, loadSvgRenderer, loadVectorSvg } from "@/utils/lazyModules";
 import { targetPixels } from "@/utils/printResolution";
 
 // Convert mm to PDF points (1 inch = 72 points, 1 inch = 25.4mm)
@@ -67,6 +65,13 @@ function expandCards(cards: Card[]): ExpandedCard[] {
     }
   }
   return expanded;
+}
+
+/**
+ * The image printed for a card: its front, or its back, falling back to the session's default back
+ */
+function cardImageId(card: ExpandedCard, backs: GeneratePdfOptions["backs"]): string | undefined {
+  return backs ? (card.cardBackId ?? backs.defaultBackId) : card.imageId;
 }
 
 /**
@@ -153,40 +158,19 @@ interface EmbeddedCard {
 }
 
 /** How card images are rendered for print, the same for every card of a document */
-interface CardRendering {
-  /** Size of a card in pixels, at the print resolution */
-  sizePx: Dimension;
-  /** Color that images are flattened onto, and that shows through transparent parts of vector cards */
-  background: Rgb;
-  rasterScaling: RasterScaling;
+interface CardRendering extends RasterRendering {
   svgOutput: SvgOutput;
 }
 
 /**
- * Compress bytes into a PDF FlateDecode stream (zlib format).
- * The browser's native zlib is about 3× faster than pdf-lib's JavaScript one, for files 1-2% bigger.
+ * Embed a rasterized card as an image
  */
-async function deflate(bytes: Uint8Array): Promise<Uint8Array> {
-  const compressed = new Blob([bytes as BlobPart]).stream().pipeThrough(new CompressionStream("deflate"));
-  return new Uint8Array(await new Response(compressed).arrayBuffer());
-}
-
-/**
- * Embed card pixels, at the print resolution unless kept at their own, as an opaque, losslessly compressed RGB image.
- * Printers resample images to their own grid and flatten transparency, both badly, so neither is left to them.
- */
-async function embedPixels(
-  pdfDoc: PDFDocument,
-  pixels: RgbaPixels,
-  { sizePx, background, rasterScaling }: CardRendering
-): Promise<EmbeddedCard> {
-  const rgb = await toPrintRaster(pixels, sizePx, background, rasterScaling);
-
-  const stream = pdfDoc.context.stream(await deflate(rgb.data), {
+function embedRaster(pdfDoc: PDFDocument, raster: CardRaster): EmbeddedCard {
+  const stream = pdfDoc.context.stream(raster.data, {
     Type: "XObject",
     Subtype: "Image",
-    Width: rgb.width,
-    Height: rgb.height,
+    Width: raster.width,
+    Height: raster.height,
     BitsPerComponent: 8,
     ColorSpace: "DeviceRGB",
     Filter: "FlateDecode",
@@ -209,29 +193,39 @@ async function embedVectorSvg(pdfDoc: PDFDocument, image: StoredImage): Promise<
 }
 
 /**
+ * What a card is rasterized from, prepared on the page, where SVGs rendered by the browser have to be
+ */
+async function rasterSource(image: StoredImage, { sizePx, svgOutput }: CardRendering): Promise<RasterSource> {
+  if (imageFormatOf(image.data) !== ImageFormat.Svg) {
+    return { kind: "image", dataUrl: image.data };
+  }
+  if (svgOutput === SvgOutput.RasterBrowser) {
+    return { kind: "pixels", pixels: await decodeImage(image.data, sizePx) };
+  }
+  // Through the loader, for its status to show while it downloads
+  return { kind: "svg", svg: dataUrlToBytes(image.data), resvg: await loadSvgRenderer() };
+}
+
+/**
  * Embed a card image into the document, with SVGs embedded as the session asks.
+ * Rasters are made by the image workers, several at once.
  * Throws why it cannot, for the caller to say which card it is.
  */
-async function embedCard(pdfDoc: PDFDocument, image: StoredImage, rendering: CardRendering): Promise<EmbeddedCard> {
+async function embedCard(
+  pdfDoc: PDFDocument,
+  image: StoredImage,
+  rendering: CardRendering,
+  signal: AbortSignal
+): Promise<EmbeddedCard> {
   if (!isDecodable(image.data)) {
     throw new Error(`${mimeTypeOf(image.data)} images are not supported`);
   }
-
-  const { sizePx, background, svgOutput } = rendering;
-  if (imageFormatOf(image.data) === ImageFormat.Svg) {
-    switch (svgOutput) {
-      case SvgOutput.RasterResvg:
-        // Through the loader, for its status to show while it downloads
-        await loadSvgRenderer();
-        return await embedPixels(pdfDoc, await renderSvg(dataUrlToBytes(image.data), sizePx, background), rendering);
-      case SvgOutput.RasterBrowser:
-        return await embedPixels(pdfDoc, await decodeImage(image.data, sizePx), rendering);
-      case SvgOutput.Vector:
-        return await embedVectorSvg(pdfDoc, image);
-    }
+  if (imageFormatOf(image.data) === ImageFormat.Svg && rendering.svgOutput === SvgOutput.Vector) {
+    return await embedVectorSvg(pdfDoc, image);
   }
 
-  return await embedPixels(pdfDoc, await decodeImage(image.data, sizePx), rendering);
+  const workers = await loadRasterWorkers();
+  return embedRaster(pdfDoc, await workers.rasterize(() => rasterSource(image, rendering), rendering, signal));
 }
 
 /**
@@ -386,7 +380,6 @@ export async function generatePdf({
 
   // Create output document
   const pdfDoc = await PDFDocument.create();
-  const embeddedCards = new Map<string, EmbeddedCard>();
   // Cards sit on the same background as empty slots, so transparent corners match them.
   // With no slot color the base PDF shows through empty slots, but cards can't be flattened onto it: use the paper.
   const cardBackground = emptySlotColor ?? WHITE;
@@ -396,6 +389,27 @@ export async function generatePdf({
     rasterScaling,
     svgOutput,
   };
+
+  // Each image is embedded once, however many cards and slots show it.
+  // All are started at once, for the workers to rasterize several together; the first failure stops the rest.
+  const stopped = new AbortController();
+  const embedding = AbortSignal.any(signal ? [signal, stopped.signal] : [stopped.signal]);
+  const embeddedCards = new Map<string, Promise<EmbeddedCard>>();
+  let failure: Error | undefined;
+  for (const expandedCard of expandedCards) {
+    const imageId = cardImageId(expandedCard, backs);
+    const image = imageId && getImage(imageId);
+    if (imageId && image && !embeddedCards.has(imageId)) {
+      const embedded = embedCard(pdfDoc, image, rendering, embedding);
+      embedded.catch((error: unknown) => {
+        // Named as the card list shows it, not by its stored image
+        const card = backs ? `the back of "${expandedCard.name}"` : `"${expandedCard.name}"`;
+        failure ??= new Error(`Cannot print ${card}: ${error instanceof Error ? error.message : String(error)}`);
+        stopped.abort();
+      });
+      embeddedCards.set(imageId, embedded);
+    }
+  }
 
   // Process each page worth of cards
   for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
@@ -436,13 +450,10 @@ export async function generatePdf({
 
       if (!slot) continue;
 
-      // Determine which image to use (front or back); backs fall back to the session default.
-      // A slot with no card has no back either, lest the backs PDF print backs for missing fronts.
-      const imageIdToUse =
-        expandedCard && (backs ? (expandedCard.cardBackId ?? backs.defaultBackId) : expandedCard.imageId);
-
-      const image = imageIdToUse ? getImage(imageIdToUse) : undefined;
-      if (!expandedCard || !imageIdToUse || !image) {
+      // A slot with no card has no back either, lest the backs PDF print backs for missing fronts
+      const imageIdToUse = expandedCard && cardImageId(expandedCard, backs);
+      const embedded = imageIdToUse && embeddedCards.get(imageIdToUse);
+      if (!expandedCard || !embedded) {
         // No card (or no image) for this slot: paint over the base template instead
         drawEmptySlot(
           page,
@@ -459,17 +470,15 @@ export async function generatePdf({
       const cardIndex = startIdx + slotIndex;
       onProgress?.(cardIndex + 1, expandedCards.length);
 
-      // Each image is embedded once, however many cards and slots show it
-      let embeddedCard = embeddedCards.get(imageIdToUse);
-      if (!embeddedCard) {
-        try {
-          embeddedCard = await embedCard(pdfDoc, image, rendering);
-        } catch (error) {
-          // Named as the card list shows it, not by its stored image
-          const card = backs ? `the back of "${expandedCard.name}"` : `"${expandedCard.name}"`;
-          throw new Error(`Cannot print ${card}: ${error instanceof Error ? error.message : String(error)}`);
+      let embeddedCard: EmbeddedCard;
+      try {
+        embeddedCard = await embedded;
+      } catch (error) {
+        if (signal?.aborted) {
+          throw new DOMException("PDF generation cancelled", "AbortError");
         }
-        embeddedCards.set(imageIdToUse, embeddedCard);
+        // The first failure, which stopped the cards still waiting, like this one may have been
+        throw failure ?? error;
       }
 
       drawCardOnPage(
